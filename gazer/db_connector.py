@@ -27,6 +27,13 @@ class DBConnector:
       cur.close()
       return pd.DataFrame(results, columns=columns)
 
+    def execute_raw(self, sql):
+      cur = self.conn.cursor()
+      cur.execute(sql)
+      results = cur.fetchall()
+      cur.close()
+      return results
+
     def close(self):
       if self.conn:
         self.conn.close()
