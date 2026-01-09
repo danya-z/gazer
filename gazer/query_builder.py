@@ -16,11 +16,34 @@ class QueryBuilder:
     self._table = table_name
     return self
     
-  def add_column(self, column_name, table_name):
-    """Add a column to SELECT"""
-    full_column = f"{table_name}.{column_name}"
+
+  def add_column(self, column_name, table_name=None):
+    """Add a column to SELECT.
+    Args:
+      column_name: Name of the column
+      table_name: Optional table qualifier. 
+        If None, uses unqualified column name
+    """
+    if table_name:
+      full_column = f"{table_name}.{column_name}"
+    else:
+      full_column = column_name
+
     if full_column not in self._columns:
       self._columns.append(full_column)
+      return self
+
+  def add_columns(self, *columns):
+    """Add multiple columns to SELECT.
+    Args:
+      columns: Can be strings ('col1', 'col2') 
+      or tuples (('col1', 'table1'), ('col2', 'table2'))
+    """
+    for col in columns:
+      if isinstance(col, tuple):
+        self.add_column(col[0], col[1])
+      else:
+        self.add_column(col)
     return self
     
   def remove_column(self, column_name):
@@ -107,8 +130,7 @@ class QueryBuilder:
     """Generate the SQL query string.
     Returns:
       str: The complete SQL query
-    Raises:
-      ValueError: If table or columns are not set
+    Raises ValueError if table or columns are not set
     """
     if not self._table:
       raise ValueError("Table must be set before building query")
@@ -116,7 +138,7 @@ class QueryBuilder:
       raise ValueError("At least one column must be selected")
     
     # Build SELECT and JOIN clauses
-    columns_str = ', '.join(self._columns)
+    columns_str = ',\n       '.join(self._columns)
     sql = f"SELECT {columns_str}\nFROM {self._table}"
     if self._joins:
       for join in self._joins:
@@ -131,7 +153,7 @@ class QueryBuilder:
       for f in self._filters:
         condition = self._format_filter(f)
         conditions.append(condition)
-      where_clause = ' AND\n'.join(conditions)
+      where_clause = ' AND\n      '.join(conditions)
       sql += f"\nWHERE {where_clause}"
 
     sql += ";"
@@ -161,9 +183,9 @@ class QueryBuilder:
       values_str = ', '.join(quoted_values)
       return f"{column} IN ({values_str})"
       
-      # Handle standard operators
-      quoted_value = self._quote_value(value)
-      return f"{column} {operator} {quoted_value}"
+    # Handle standard operators
+    quoted_value = self._quote_value(value)
+    return f"{column} {operator} {quoted_value}"
   
   def _quote_value(self, value):
     """Quote a value for SQL"""
