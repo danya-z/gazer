@@ -1,129 +1,225 @@
 from textual.app import App
-from textual.widgets import Header, Footer, Static, Button, Input
+from textual.screen import Screen
+from textual.widgets import Header, Footer, Static, Button, Input, Label
+from textual.containers import Grid, Vertical, Horizontal
 from textual.binding import Binding
 
 from db_connector import DBConnector
 from schema_inspector import SchemaInspector
 from query_builder import QueryBuilder
+from memory import Config
 
 class GazerApp(App):
-
+  """Main Gazer TUI application."""
+  
   TITLE = "Gazer"
   SUB_TITLE = "Database Query Builder"
   CSS_PATH = "gazer.tcss"
+  
   BINDINGS = [
     Binding("escape", "quit", "Quit"),
-    Binding("c", "connect", "Connect")
+  ]
+  
+  def on_mount(self):
+    """Show connection screen on startup."""
+    self.push_screen(ConnectionScreen())
+  
+  def cleanup(self):
+    """Clean up database connection."""
+    if hasattr(self, 'db') and self.db is not None:
+      try:
+        self.db.close()
+      except:
+        pass
+  
+  def action_quit(self):
+    """Quit application."""
+    self.cleanup()
+    self.exit()
+
+
+class ConnectionScreen(Screen):
+  BINDINGS = [
+    Binding("escape", "app.quit", "Quit"),
+    Binding("^s", "connection_settings", "Connection Settings")
   ]
 
-  def on_mount(self):
-    self.theme = "gruvbox"
+  def __init__(self):
+    super().__init__()
+    self.config = Config()
 
   def compose(self):
     yield Header()
-    yield Static("Host:")
-    yield Input(
-      value="ldvdbapgdb02a.itap.purdue.edu", 
-      id="host"
-    )
-    yield Static("Port:")
-    yield Input(value="5433", id="port")
-    yield Static("Database:")
-    yield Input(value="bdidata", id="database")
+    yield Static("Database Connection", id="title")
     
-    yield Static("Username:")
-    yield Input(placeholder="Enter username", id="username")
-    yield Static("Password:")
-    yield Input(
-      placeholder="Enter password",
-      password=True,
-      id="password"
+    yield Label(
+      'Welcome to Gazer - the database query builder, written for bdi laboratory at Purdue.\n\n'
+      'You can configure the connection settings by pressing ^s (Ctrl-S).\n'
+      'Escape will bring you back, and ^c (Ctrl-C) will always kill the program.',
+      id="welcome"
+    )
+
+    yield Label(f"Host:     {self.config.get_host()}")
+    yield Label(f"Port:     {self.config.get_port()}")
+    yield Label(f"Database: {self.config.get_database()}")
+
+    yield Horizontal(
+      Label("Username: "),
+      Input(
+        value=self.config.get_username(),
+        placeholder="Enter username",
+        classes="simple_input",
+        id="username"
+      )
+    )
+    yield Horizontal(
+      Label("Password: "),
+      Input(
+        placeholder="Enter password",
+        password=True,
+        classes="simple_input",
+        id="password"
+      )
     )
     
-    yield Static("")
-    yield Button("Connect", id="connect", variant="primary")
-    yield Static("", id="status")
+    yield Static("", id="error_display")
     yield Footer()
   
-  def on_button_pressed(self, event: Button.Pressed):
-    if event.button.id == "connect":
+  def on_input_submitted(self, event: Input.Submitted):
+    if event.input.id == "username":
+      password_input = self.query_one("#password", Input)
+      password_input.focus()
+    elif event.input.id == "password":
       self.attempt_connection()
 
-  def on_input_submitted(self, event: Input.Submitted):
-    inputs = ["#host", "#port", "#database", "#username", "#password"]
-    current_id = event.input.id
-    current_index = inputs.index(f"#{current_id}")
-    if current_index < len(inputs) - 1:
-      next_input = self.query_one(inputs[current_index + 1], Input)
-      next_input.focus()
-
   def attempt_connection(self):
-    status = self.query_one("#status", Static)
-    status.update("Connecting...")
+    error_display = self.query_one("#error_display", Static)
     
-    host = self.query_one("#host", Input).value
-    port = self.query_one("#port", Input).value
-    database = self.query_one("#database", Input).value
+    host = self.config.get_host()
+    port = self.config.get_port()
+    database = self.config.get_database()
     username = self.query_one("#username", Input).value
     password = self.query_one("#password", Input).value
     
     if not username:
-      status.update("Username is required")
+      error_display.update("Username is required")
       return
     if not password:
-      status.update("Password is required")
+      error_display.update("Password is required")
       return
 
     db = None
     try:
       db = DBConnector(host, port, database, username, password)
       db.connect()
-      self.db = db
 
-      self.schema = SchemaInspector(db)
-      self.query_builder = QueryBuilder()
-      status.update("✓ Connected successfully!")
+      # Success
+      self.config.set_username(username)
+      self.app.db = db
+      self.app.schema = SchemaInspector(db)
+      self.app.query_builder = QueryBuilder()
+
+      self.app.push_screen(TableSelectionScreen())
       
     except Exception as e:
+      # Cleanup on failure
       if db is not None:
         try:
           db.close()
         except:
           pass
 
-      raw_error_msg = str(e)
-      code_error = raw_error_msg.lower()
+      self.show_error(e)
 
-      if "timeout" in code_error or "timed out" in code_error:
-        human_readible_error_msg = "Connection timeout - Are you on the VPN?"
-      elif "authentication failed" in code_error:
-        human_readible_error_msg = "Authentication failed - Check password"
-      elif "no pg_hba.conf entry for host" in code_error:
-        human_readible_error_msg = "Authentication failed - Check username"
-      elif "could not translate host name" in code_error:
-        human_readible_error_msg = "Cannot reach host - Check VPN connection"
-      else:
-        human_readible_error_msg = "Gazer does not recognize this error."
+  def show_error(self, exception):
+    raw_error = str(exception)
+    code_error = raw_error.lower()
 
-      status.update(f"{human_readible_error_msg}\nDetails: {raw_error_msg}")
+    if "timeout" in code_error or "timed out" in code_error:
+      user_msg = "Connection timeout - Are you on the VPN?"
+    elif "authentication failed" in code_error:
+      user_msg = "Authentication failed - Check password."
+    elif "no pg_hba.conf entry for host" in code_error:
+      user_msg = "Authentication failed - Check username."
+    elif "could not translate host name" in code_error:
+      user_msg = "Cannot reach host - Check VPN connection."
+    else:
+      user_msg = "Connection failed. Gazer does not recognize the error."
+
+    self.app.push_screen(ErrorScreen(user_msg, raw_error))
+
+class ErrorScreen(Screen):
+  BINDINGS = [
+    Binding("escape", "app.pop_screen", "Back"),
+    Binding("c", "copy_error", "Copy Error"),
+  ]
   
-  def cleanup(self):
-    if hasattr(self, 'db') and self.db is not None:
-      try:
-        self.db.close()
-      except Exception as e:
-        pass
-
-  def action_quit(self):
-    self.cleanup()
-    self.exit()
+  def __init__(self, user_message, technical_details):
+    super().__init__()
+    self.user_message = user_message
+    self.technical_details = technical_details
   
-  def action_connect(self):
-    self.attempt_connection()
+  def compose(self):
+    yield Header()
+    yield Static("Error", id="title")
+    
+    yield Vertical(
+      Static(f"❌ {self.user_message}", classes="user-error"),
+      Static("Technical Details:", classes="error-label"),
+      Static(self.technical_details, id="error_details", classes="technical-error"),
+      Static("\nPress 'c' to copy error to clipboard", classes="hint"),
+    )
+    
+    yield Horizontal(
+      Button("Back", id="back", variant="primary"),
+      Button("Copy Error", id="copy", variant="default"),
+    )
+    
+    yield Footer()
+  
+  def on_button_pressed(self, event: Button.Pressed):
+    if event.button.id == "back":
+      self.app.pop_screen()
+    elif event.button.id == "copy":
+      self.action_copy_error()
+  
+  def action_copy_error(self):
+    """Copy error to clipboard."""
+    try:
+      import pyperclip
+      pyperclip.copy(self.technical_details)
+      self.query_one("#error_details", Static).update(
+        f"{self.technical_details}\n\n✓ Copied to clipboard!"
+      )
+    except ImportError:
+      self.query_one("#error_details", Static).update(
+        f"{self.technical_details}\n\n(pyperclip not installed - copy manually)"
+      )
+
+class TableSelectionScreen(Screen):
+  BINDINGS = [
+    Binding("escape", "app.pop_screen", "Back"),
+  ]
+  
+  def compose(self):
+    yield Header()
+    yield Static("Table Selection")
+    yield Static("(To be implemented)")
+    yield Button("Back", id="back")
+    yield Footer()
+  
+  def on_button_pressed(self, event: Button.Pressed):
+    if event.button.id == "back":
+      self.app.pop_screen()
 
 def main():
   app = GazerApp()
-  app.run()
+  try:
+    app.run()
+  except KeyboardInterrupt:
+    pass
+  finally:
+    app.cleanup()
 
 if __name__ == '__main__':
   main()
