@@ -1,0 +1,26 @@
+Screen {
+  align: center middle;
+}
+
+#title {
+  text-align: center;
+  text-style: bold;
+  color: $accent;
+  padding: 1;
+}
+
+Input {
+  margin: 0 2 1 2;
+  width: 50;
+}
+
+Button {
+  margin: 1 2;
+}
+
+#status {
+  text-align: center;
+  padding: 1;
+  margin: 1 2;
+  min-height: 3;
+}

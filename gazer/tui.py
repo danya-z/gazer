@@ -10,13 +10,14 @@ class GazerApp(App):
 
   TITLE = "Gazer"
   SUB_TITLE = "Database Query Builder"
+  CSS_PATH = "gazer.tcss"
   BINDINGS = [
     Binding("escape", "quit", "Quit"),
     Binding("c", "connect", "Connect")
   ]
 
   def on_mount(self):
-    self.theme = "monokai"
+    self.theme = "gruvbox"
 
   def compose(self):
     yield Header()
@@ -73,6 +74,7 @@ class GazerApp(App):
       status.update("Password is required")
       return
 
+    db = None
     try:
       db = DBConnector(host, port, database, username, password)
       db.connect()
