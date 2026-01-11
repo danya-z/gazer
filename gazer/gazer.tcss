@@ -1,5 +1,5 @@
 Screen {
-  align: center middle;
+  align: left top;
 }
 
 #title {
@@ -7,20 +7,63 @@ Screen {
   text-style: bold;
   color: $accent;
   padding: 1;
+  margin: 1 0;
+  outline: double $accent
 }
 
-Input {
-  margin: 0 2 1 2;
-  width: 50;
+#welcome {
+  text-align: left;
+  padding: 1;
+  margin: 1 0;
+  outline: solid $primary
 }
 
-Button {
-  margin: 1 2;
+.simple_input {
+  border: none;
+  background: transparent;
+  padding: 0;
+  height: auto;
+  content-align: left middle;
 }
 
-#status {
+#error_display {
   text-align: center;
   padding: 1;
   margin: 1 2;
   min-height: 3;
+}
+
+.user-error {
+  text-align: center;
+  padding: 1;
+  color: $error;
+  text-style: bold;
+}
+
+.error-label {
+  padding: 1 2;
+  text-style: bold;
+}
+
+.technical-error {
+  padding: 1 2;
+  background: $panel;
+  color: $text-muted;
+  border: solid $error;
+  margin: 0 2;
+  height: auto;
+  max-height: 15;
+  overflow-y: auto;
+}
+
+.hint {
+  text-align: center;
+  color: $text-muted;
+  padding: 1;
+}
+
+Horizontal {
+  align: center middle;
+  width: 100%;
+  height: auto;
 }
