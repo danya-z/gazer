@@ -24,3 +24,6 @@ Thumbs.db
 *.egg-info/
 dist/
 build/
+
+# Cache files
+mem/cache.json

@@ -1,0 +1,5 @@
+{
+  "host": "ldvdbapgdb02a.itap.purdue.edu",
+  "port": "5433",
+  "database": "bdidata"
+}
