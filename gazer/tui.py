@@ -107,12 +107,34 @@ class ConnectionScreen(Screen):
       error_display.update("Password is required")
       return
     
-    error_display.update("Connecting...")
+    self.start_connecting_animation()
     self.connect_worker(host, port, database, username, password)
 
-  @work(exclusive=True, thread=True)
+  def start_connecting_animation(self):
+    """Start animated 'Connecting...' message."""
+    self._connecting = True
+    self._animation_dots = 0
+    self.set_interval(0.5, self.update_connecting_animation)
+  
+  def update_connecting_animation(self):
+    """Update the connecting animation."""
+    if not self._connecting:
+      return
+
+    error_display = self.query_one("#error_display", Static)
+    self._animation_dots = (self._animation_dots) % 3 + 1
+    dots = "." * self._animation_dots
+    error_display.update(f"Connecting{dots}")
+
+  def stop_connecting_animation(self):
+    """Stop the connecting animation and clear message."""
+    self._connecting = False
+    error_display = self.query_one("#error_display", Static)
+    error_display.update("")
+
+  @work(exclusive=True, thread=True) #decorator, runs the function in a separate thread
   async def connect_worker(self, host: str, port: str, database: str, username:str, password: str):
-    """Worker to handle blocking database connection."""
+    """Worker to handle the blocking database connection."""
     db = None
     try:
       db = DBConnector(host, port, database, username, password)
@@ -131,6 +153,7 @@ class ConnectionScreen(Screen):
 
   def connection_success(self, db: DBConnector, username: str):
     """Called on successful connection from main thread"""
+    self.stop_connecting_animation()
     self.config.set_username(username)
     self.app.db = db
     self.app.schema = SchemaInspector(db)
@@ -138,6 +161,8 @@ class ConnectionScreen(Screen):
     self.app.push_screen(TableSelectionScreen())
 
   def show_error(self, exception):
+    """Display error message screen."""
+    self.stop_connecting_animation()
     error_category = "Connection"
     raw_error = str(exception)
     code_error = raw_error.lower()
@@ -149,7 +174,7 @@ class ConnectionScreen(Screen):
     elif "no pg_hba.conf entry for host" in code_error:
       user_msg = "Authentication failed - Check username."
     elif "could not translate host name" in code_error:
-      user_msg = "Cannot reach host - Check VPN connection."
+      user_msg = "Cannot reach host - Check VPN connectio."
     else:
       user_msg = "Gazer does not recognize the error."
 
