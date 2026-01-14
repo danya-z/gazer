@@ -8,14 +8,14 @@ Screen {
   color: $accent;
   padding: 1;
   margin: 1 0;
-  outline: double $accent
+  outline: double $accent;
 }
 
 #welcome {
   text-align: left;
   padding: 1;
   margin: 1 0;
-  outline: solid $primary
+  outline: solid $primary;
 }
 
 .simple_input {
@@ -34,26 +34,19 @@ Screen {
 }
 
 .user-error {
-  text-align: center;
+  text-style: bold;
   padding: 1;
   color: $error;
-  text-style: bold;
 }
 
 .error-label {
-  padding: 1 2;
+  padding: 0 1;
   text-style: bold;
 }
 
 .technical-error {
-  padding: 1 2;
-  background: $panel;
-  color: $text-muted;
-  border: solid $error;
+  padding: 0 1;
   margin: 0 2;
-  height: auto;
-  max-height: 15;
-  overflow-y: auto;
 }
 
 .hint {
