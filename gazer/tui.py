@@ -1,3 +1,4 @@
+from textual import work # For threads
 from textual.app import App
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Static, Button, Input, Label
@@ -107,18 +108,17 @@ class ConnectionScreen(Screen):
       return
     
     error_display.update("Connecting...")
+    self.connect_worker(host, port, database, username, password)
 
+  @work(exclusive=True, thread=True)
+  async def connect_worker(self, host: str, port: str, database: str, username:str, password: str):
+    """Worker to handle blocking database connection."""
     db = None
     try:
       db = DBConnector(host, port, database, username, password)
       db.connect()
-
       # Success
-      self.config.set_username(username)
-      self.app.db = db
-      self.app.schema = SchemaInspector(db)
-      self.app.query_builder = QueryBuilder()
-      self.app.push_screen(TableSelectionScreen())
+      self.app.call_from_thread(self.connection_success, db, username)
       
     except Exception as e:
       # Cleanup on failure
@@ -127,7 +127,15 @@ class ConnectionScreen(Screen):
           db.close()
         except:
           pass
-      self.show_error(e)
+      self.app.call_from_thread(self.show_error, e)
+
+  def connection_success(self, db: DBConnector, username: str):
+    """Called on successful connection from main thread"""
+    self.config.set_username(username)
+    self.app.db = db
+    self.app.schema = SchemaInspector(db)
+    self.app.query_builder = QueryBuilder()
+    self.app.push_screen(TableSelectionScreen())
 
   def show_error(self, exception):
     error_category = "Connection"
