@@ -11,7 +11,6 @@ from memory import Config
 
 class GazerApp(App):
   """Main Gazer TUI application."""
-  
   TITLE = "Gazer"
   SUB_TITLE = "Database Query Builder"
   CSS_PATH = "gazer.tcss"
@@ -36,7 +35,6 @@ class GazerApp(App):
     """Quit application."""
     self.cleanup()
     self.exit()
-
 
 class ConnectionScreen(Screen):
   BINDINGS = [
@@ -107,6 +105,8 @@ class ConnectionScreen(Screen):
     if not password:
       error_display.update("Password is required")
       return
+    
+    error_display.update("Connecting...")
 
     db = None
     try:
@@ -118,7 +118,6 @@ class ConnectionScreen(Screen):
       self.app.db = db
       self.app.schema = SchemaInspector(db)
       self.app.query_builder = QueryBuilder()
-
       self.app.push_screen(TableSelectionScreen())
       
     except Exception as e:
@@ -128,10 +127,10 @@ class ConnectionScreen(Screen):
           db.close()
         except:
           pass
-
       self.show_error(e)
 
   def show_error(self, exception):
+    error_category = "Connection"
     raw_error = str(exception)
     code_error = raw_error.lower()
 
@@ -144,9 +143,9 @@ class ConnectionScreen(Screen):
     elif "could not translate host name" in code_error:
       user_msg = "Cannot reach host - Check VPN connection."
     else:
-      user_msg = "Connection failed. Gazer does not recognize the error."
+      user_msg = "Gazer does not recognize the error."
 
-    self.app.push_screen(ErrorScreen(user_msg, raw_error))
+    self.app.push_screen(ErrorScreen(error_category, user_msg, raw_error))
 
 class ErrorScreen(Screen):
   BINDINGS = [
@@ -154,47 +153,32 @@ class ErrorScreen(Screen):
     Binding("c", "copy_error", "Copy Error"),
   ]
   
-  def __init__(self, user_message, technical_details):
+  def __init__(self, error_category, user_message, technical_details):
     super().__init__()
+    self.error_category = error_category
     self.user_message = user_message
     self.technical_details = technical_details
   
   def compose(self):
     yield Header()
-    yield Static("Error", id="title")
+    yield Static(f"{self.error_category} Error", id="title")
     
     yield Vertical(
-      Static(f"❌ {self.user_message}", classes="user-error"),
+      Static(f"{self.user_message}", classes="user-error"),
       Static("Technical Details:", classes="error-label"),
       Static(self.technical_details, id="error_details", classes="technical-error"),
-      Static("\nPress 'c' to copy error to clipboard", classes="hint"),
-    )
-    
-    yield Horizontal(
-      Button("Back", id="back", variant="primary"),
-      Button("Copy Error", id="copy", variant="default"),
+      Static("Press 'c' to copy error (technical details) to clipboard", id="copy_hint", classes="hint"),
     )
     
     yield Footer()
   
-  def on_button_pressed(self, event: Button.Pressed):
-    if event.button.id == "back":
-      self.app.pop_screen()
-    elif event.button.id == "copy":
-      self.action_copy_error()
-  
   def action_copy_error(self):
     """Copy error to clipboard."""
-    try:
-      import pyperclip
-      pyperclip.copy(self.technical_details)
-      self.query_one("#error_details", Static).update(
-        f"{self.technical_details}\n\n✓ Copied to clipboard!"
-      )
-    except ImportError:
-      self.query_one("#error_details", Static).update(
-        f"{self.technical_details}\n\n(pyperclip not installed - copy manually)"
-      )
+    import pyperclip
+    pyperclip.copy(self.technical_details)
+    self.query_one("#copy_hint", Static).update(
+      f"✓ Copied to clipboard!"
+    )
 
 class TableSelectionScreen(Screen):
   BINDINGS = [
@@ -208,10 +192,6 @@ class TableSelectionScreen(Screen):
     yield Button("Back", id="back")
     yield Footer()
   
-  def on_button_pressed(self, event: Button.Pressed):
-    if event.button.id == "back":
-      self.app.pop_screen()
-
 def main():
   app = GazerApp()
   try:
