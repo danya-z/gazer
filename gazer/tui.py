@@ -2,7 +2,7 @@ from textual import work # For threads
 from textual.app import App
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Static, Button, Input, Label
-from textual.containers import Grid, Vertical, Horizontal
+from textual.containers import Vertical, Horizontal
 from textual.binding import Binding
 
 from db_connector import DBConnector
@@ -220,11 +220,11 @@ class TableSelectionScreen(Screen):
   
   def compose(self):
     yield Header()
-    yield Static("Table Selection")
-    yield Static("(To be implemented)")
-    yield Button("Back", id="back")
+
     yield Footer()
   
+
+
 def main():
   app = GazerApp()
   try:
