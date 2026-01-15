@@ -1,7 +1,8 @@
+from typing import cast
 from textual import work # For threads
 from textual.app import App
 from textual.screen import Screen
-from textual.widgets import Header, Footer, Static, Button, Input, Label
+from textual.widgets import Header, Footer, Static, Input, Label
 from textual.containers import Vertical, Horizontal
 from textual.binding import Binding
 
@@ -10,37 +11,51 @@ from schema_inspector import SchemaInspector
 from query_builder import QueryBuilder
 from memory import Config
 
+#Gazer App {{{
 class GazerApp(App):
   """Main Gazer TUI application."""
   TITLE = "Gazer"
   SUB_TITLE = "Database Query Builder"
   CSS_PATH = "gazer.tcss"
-  
   BINDINGS = [
     Binding("escape", "quit", "Quit"),
   ]
   
+  def __init__(self):
+    super().__init__()
+    self.db: DBConnector | None = None
+    self.schema: SchemaInspector | None = None
+    self.query_builder: QueryBuilder | None = None
+
   def on_mount(self):
     """Show connection screen on startup."""
     self.push_screen(ConnectionScreen())
   
-  def cleanup(self):
-    """Clean up database connection."""
-    if hasattr(self, 'db') and self.db is not None:
+
+  def cleanup_sync(self):
+    """Synchronous cleanup for emergency shutdown"""
+    if self.db is not None:
       try:
         self.db.close()
-      except:
-        pass
-  
-  def action_quit(self):
-    """Quit application."""
-    self.cleanup()
-    self.exit()
+        self.log.info("Database connection closed (sync)")
+      except Exception as e:
+        self.log.error(f"Error closing database: {e}")
 
+  async def cleanup(self):
+    """Clean up database connection"""
+    self.cleanup_sync()
+  
+  async def action_quit(self):
+    """Quit application"""
+    await self.cleanup()
+    self.exit()
+#}}}
+
+# Connection Screen {{{
 class ConnectionScreen(Screen):
   BINDINGS = [
     Binding("escape", "app.quit", "Quit"),
-    Binding("^s", "connection_settings", "Connection Settings")
+    # TODO, connection settings 
   ]
 
   def __init__(self):
@@ -50,7 +65,6 @@ class ConnectionScreen(Screen):
   def compose(self):
     yield Header()
     yield Static("Database Connection", id="title")
-    
     yield Label(
       'Welcome to Gazer - the database query builder, written for bdi laboratory at Purdue.\n\n'
       'You can configure the connection settings by pressing ^s (Ctrl-S).\n'
@@ -93,7 +107,7 @@ class ConnectionScreen(Screen):
 
   def attempt_connection(self):
     error_display = self.query_one("#error_display", Static)
-    
+
     host = self.config.get_host()
     port = self.config.get_port()
     database = self.config.get_database()
@@ -110,6 +124,7 @@ class ConnectionScreen(Screen):
     self.start_connecting_animation()
     self.connect_worker(host, port, database, username, password)
 
+  # Connection animation {{{
   def start_connecting_animation(self):
     """Start animated 'Connecting...' message."""
     self._connecting = True
@@ -131,8 +146,11 @@ class ConnectionScreen(Screen):
     self._connecting = False
     error_display = self.query_one("#error_display", Static)
     error_display.update("")
+  # }}}
 
-  @work(exclusive=True, thread=True) #decorator, runs the function in a separate thread
+  # DB Conection {{{
+  # Runs in parallel to everything else
+  @work(exclusive=True, thread=True)
   async def connect_worker(self, host: str, port: str, database: str, username:str, password: str):
     """Worker to handle the blocking database connection."""
     db = None
@@ -153,12 +171,14 @@ class ConnectionScreen(Screen):
 
   def connection_success(self, db: DBConnector, username: str):
     """Called on successful connection from main thread"""
+    app = cast(GazerApp, self.app)
+
     self.stop_connecting_animation()
     self.config.set_username(username)
-    self.app.db = db
-    self.app.schema = SchemaInspector(db)
-    self.app.query_builder = QueryBuilder()
-    self.app.push_screen(TableSelectionScreen())
+    app.db = db
+    app.schema = SchemaInspector(db)
+    app.query_builder = QueryBuilder()
+    app.push_screen(QueryBuilderScreen())
 
   def show_error(self, exception):
     """Display error message screen."""
@@ -179,8 +199,13 @@ class ConnectionScreen(Screen):
       user_msg = "Gazer does not recognize the error."
 
     self.app.push_screen(ErrorScreen(error_category, user_msg, raw_error))
+  #}}}
 
+#}}}
+
+# Error Screen {{{
 class ErrorScreen(Screen):
+  """Screen for displaying and copying error messages"""
   BINDINGS = [
     Binding("escape", "app.pop_screen", "Back"),
     Binding("c", "copy_error", "Copy Error"),
@@ -212,27 +237,14 @@ class ErrorScreen(Screen):
     self.query_one("#copy_hint", Static).update(
       f"✓ Copied to clipboard!"
     )
-
-class TableSelectionScreen(Screen):
-  BINDINGS = [
-    Binding("escape", "app.pop_screen", "Back"),
-  ]
-  
-  def compose(self):
-    yield Header()
-
-    yield Footer()
-  
-
+#}}}
 
 def main():
   app = GazerApp()
   try:
     app.run()
   except KeyboardInterrupt:
-    pass
-  finally:
-    app.cleanup()
+    app.cleanup_sync()
 
 if __name__ == '__main__':
   main()
