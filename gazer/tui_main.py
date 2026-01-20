@@ -1,9 +1,9 @@
 from typing import cast
 from textual import work # For threads
-from textual.app import App
+from textual.app import App, ComposeResult
 from textual.screen import Screen
-from textual.widgets import Header, Footer, Static, Input, Label
-from textual.containers import Vertical, Horizontal
+from textual.widgets import Header, Footer, Static, Input, TabbedContent, TabPane, Label
+from textual.containers import Container, Vertical, Horizontal
 from textual.binding import Binding
 
 from db_connector import DBConnector
@@ -238,6 +238,109 @@ class ErrorScreen(Screen):
       f"✓ Copied to clipboard!"
     )
 #}}}
+
+# SQL Builder Screen {{{
+class CommandHistoryWidget(Static): # {{{
+  """Shows committed commands (SELECT, FILTERS, JOINS)"""
+  def __init__(self):
+    super().__init__(id="command-history-panel")
+    self.selections = []
+    self.filters = []
+    self.joins = []
+
+  def render(self) -> str:
+    lines = ["\033[1mSELECT:\033[0m"]
+    if self.selections:
+      for selection in self.selections:
+        lines.append(f"  ✓ {selection}")
+      else:
+        lines.append("  (none)")
+
+      lines.append("\n\033[1mFILTERS:\033[0m")
+      if self.filters: # TODO Grouping
+        for i, filter in enumerate(self.filters, 1):
+          lines.append(f"  {i}. {filter}")
+      else:
+        lines.append("  (none)")
+
+    return "\n".join(lines)
+
+  def add_selection(self, column: str):
+    self.selections.append(column)
+    self.refresh()
+
+  def add_filter(self, filter_expr: str):
+    self.filters.append(filter_expr)
+    self.refresh()
+# }}}
+
+class SchemaWidget(Static): # {{{
+  """Shows database schema"""
+  def __init__(self):
+    super().__init__(id="schema-panel")
+    self.schema = {
+      "experiments": [
+        ("id", "int4", "PK"),
+        ("name", "text", ""),
+        ("date", "date", ""),
+        ("status", "experiment_status", "ENUM"),
+      ],
+      "trials": [
+        ("id", "int4", "PK"),
+        ("experiment_id", "int4", "FK→experiments"),
+        ("value", "numeric", ""),
+      ]
+    }
+
+  def render(self) -> str:
+    lines = []
+    for i, (table, columns) in enumerate(self.schema.items(), 1):
+      lines.append(f"{i}: {table}")
+      for col_name, col_type, extra in columns:
+        extra_str = f"  ({extra})" if extra else ""
+        lines.append(f"  - {col_name:<15} {col_type:<12}{extra_str}")
+      lines.append("")
+    return "\n".join(lines)
+# }}}
+
+class QueryBuilderScreen(Screen): # {{{
+  """Main query-builder interface"""
+  BINDINGS = [
+    Binding("ctrl+s", "toggle_sql", "Toggle Direct SQL Mode"),
+    Binding("escape", "app.pop_screen", "Back"),
+  ]
+
+  def __init__(self):
+    super().__init__()
+    self.show_sql = False
+
+  def compose(self) -> ComposeResult:
+    with Container(id="main-container"):
+      yield Header()
+      yield Footer()
+
+      # Top bar
+      yield Static("Gazer Query Builder", id="title")
+
+      # Main content area
+      with Horizontal(id="main-content"):
+        yield CommandHistoryWidget()
+        yield SchemaWidget()
+
+      # Bottom: Command input
+      yield Input(placeholder="Enter command (e.g., 'add experiments.id')", id="command-input")
+      yield Static("Commands: select <table>.<column> | filter <condition>", id="help-bar")
+
+  def action_toggle_sql(self):
+    """Toggle direct SQL mode"""
+    # TODO 
+    return ()
+
+  def on_input_submitted(self, event: Input.Submitted):
+    """TODO Handle command submission"""
+    return
+# }}}
+# }}}
 
 def main():
   app = GazerApp()
