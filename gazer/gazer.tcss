@@ -25,7 +25,7 @@ Screen {
 #schema-panel {
   width: 50%;
   height: 100%;
-  border: solid $primary;
+  outline: solid $primary;
   padding: 1;
   overflow-y: auto;
   align: left top;
@@ -35,7 +35,7 @@ Screen {
 #command-history-panel {
   width: 50%;
   height: 100%;
-  border: thick $primary;
+  outline: solid $primary;
   padding: 1;
   overflow-y: auto;
   align: left top;
