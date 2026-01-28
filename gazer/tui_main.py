@@ -2,7 +2,7 @@ from typing import cast
 from textual import work # For threads
 from textual.app import App, ComposeResult
 from textual.screen import Screen
-from textual.widgets import Header, Footer, Static, Input, TabbedContent, TabPane, Label
+from textual.widgets import Header, Footer, Static, Input, Label
 from textual.containers import Container, Vertical, Horizontal
 from textual.binding import Binding
 
@@ -24,7 +24,7 @@ class GazerApp(App):
   def __init__(self):
     super().__init__()
     self.db: DBConnector | None = None
-    self.schema: SchemaInspector | None = None
+    self.schema_inspector: SchemaInspector | None = None
     self.query_builder: QueryBuilder | None = None
 
   def on_mount(self):
@@ -55,13 +55,13 @@ class GazerApp(App):
 class ConnectionScreen(Screen):
   BINDINGS = [
     Binding("escape", "app.quit", "Quit"),
-    # TODO, connection settings 
   ]
 
   def __init__(self):
     super().__init__()
     self.config = Config()
 
+  # Compose and Call {{{
   def compose(self):
     yield Header()
     yield Static("Database Connection", id="title")
@@ -94,7 +94,7 @@ class ConnectionScreen(Screen):
         id="password"
       )
     )
-    
+
     yield Static("", id="error_display")
     yield Footer()
   
@@ -123,6 +123,7 @@ class ConnectionScreen(Screen):
     
     self.start_connecting_animation()
     self.connect_worker(host, port, database, username, password)
+   # }}}
 
   # Connection animation {{{
   def start_connecting_animation(self):
@@ -137,9 +138,13 @@ class ConnectionScreen(Screen):
       return
 
     error_display = self.query_one("#error_display", Static)
-    self._animation_dots = (self._animation_dots) % 3 + 1
-    dots = "." * self._animation_dots
-    error_display.update(f"Connecting{dots}")
+    animation_states = [
+      "Connecting·..",
+      "Connecting.·.",
+      "Connecting..·",
+    ]
+    error_display.update(animation_states[self._animation_dots])
+    self._animation_dots = (self._animation_dots + 1) % 3 
 
   def stop_connecting_animation(self):
     """Stop the connecting animation and clear message."""
@@ -149,14 +154,13 @@ class ConnectionScreen(Screen):
   # }}}
 
   # DB Conection {{{
-  # Runs in parallel to everything else
   @work(exclusive=True, thread=True)
   async def connect_worker(self, host: str, port: str, database: str, username:str, password: str):
     """Worker to handle the blocking database connection."""
     db = None
     try:
       db = DBConnector(host, port, database, username, password)
-      db.connect()
+      db.connect(timeout=5)
       # Success
       self.app.call_from_thread(self.connection_success, db, username)
       
@@ -176,7 +180,7 @@ class ConnectionScreen(Screen):
     self.stop_connecting_animation()
     self.config.set_username(username)
     app.db = db
-    app.schema = SchemaInspector(db)
+    app.schema_inspector = SchemaInspector(db)
     app.query_builder = QueryBuilder()
     app.push_screen(QueryBuilderScreen())
 
@@ -240,8 +244,8 @@ class ErrorScreen(Screen):
 #}}}
 
 # SQL Builder Screen {{{
-class CommandHistoryWidget(Static): # {{{
-  """Shows committed commands (SELECT, FILTERS, JOINS)"""
+class QueryConstructionWidget(Static): # {{{
+  """Shows committed commands (SELECTs and FILTERS)"""
   def __init__(self):
     super().__init__(id="command-history-panel")
     self.selections = []
@@ -249,14 +253,14 @@ class CommandHistoryWidget(Static): # {{{
     self.joins = []
 
   def render(self) -> str:
-    lines = ["\033[1mSELECT:\033[0m"]
+    lines = ["\033[1mSELECT (^S to add selection):\033[0m"]
     if self.selections:
       for selection in self.selections:
         lines.append(f"  ✓ {selection}")
       else:
         lines.append("  (none)")
 
-      lines.append("\n\033[1mFILTERS:\033[0m")
+      lines.append("\n\033[1mFILTERS (^F to add a filter):\033[0m ")
       if self.filters: # TODO Grouping
         for i, filter in enumerate(self.filters, 1):
           lines.append(f"  {i}. {filter}")
@@ -276,29 +280,61 @@ class CommandHistoryWidget(Static): # {{{
 
 class SchemaWidget(Static): # {{{
   """Shows database schema"""
+
   def __init__(self):
     super().__init__(id="schema-panel")
-    self.schema = {
-      "experiments": [
-        ("id", "int4", "PK"),
-        ("name", "text", ""),
-        ("date", "date", ""),
-        ("status", "experiment_status", "ENUM"),
-      ],
-      "trials": [
-        ("id", "int4", "PK"),
-        ("experiment_id", "int4", "FK→experiments"),
-        ("value", "numeric", ""),
-      ]
-    }
+    self.schema = {}
+    self.border_title = "Database Schema"
+
+  def on_mount(self) -> None:
+    """Load schema when widget mounts"""
+    self.load_schema()
+
+  @work(exclusive=True, thread=True)
+  async def load_schema(self) -> None:
+    """Load schema from inspector"""
+    try: 
+      app = cast(GazerApp, self.app)
+      inspector = app.schema_inspector
+      assert inspector is not None, "Schema inspector not initialized"
+      
+      tables = await inspector.get_tables()
+      schema = {}
+      for table_name in tables:
+        columns = await inspector.get_columns(table_name)
+        schema[table_name] = columns
+
+      self.schema = schema
+      self.refresh()
+
+    except Exception as e:
+      self.app.notify(f"Error loading schema: {e}", severity="error")
 
   def render(self) -> str:
+    if not self.schema:
+      return "Loading schema..."
+
     lines = []
+    # The following does not work currently
+    # Fix, since this is crucial info
     for i, (table, columns) in enumerate(self.schema.items(), 1):
       lines.append(f"{i}: {table}")
-      for col_name, col_type, extra in columns:
-        extra_str = f"  ({extra})" if extra else ""
+      
+      for col in columns:
+        col_name = col['name']
+        col_type = col['type']
+        extras = []
+        if col.get('is_primary'):
+          extras.append("Primary")
+        if col.get('foreign_key'):
+          fk = col['foreign_key']
+          extras.append(f"Reference→{fk['table']}.{fk['column']}")
+        if col.get('is_enum'):
+          extras.append("Enum")
+
+        extra_str = f"  ({', '.join(extras)})" if extras else ""
         lines.append(f"  - {col_name:<15} {col_type:<12}{extra_str}")
+
       lines.append("")
     return "\n".join(lines)
 # }}}
@@ -324,7 +360,7 @@ class QueryBuilderScreen(Screen): # {{{
 
       # Main content area
       with Horizontal(id="main-content"):
-        yield CommandHistoryWidget()
+        yield QueryConstructionWidget()
         yield SchemaWidget()
 
       # Bottom: Command input
@@ -337,8 +373,25 @@ class QueryBuilderScreen(Screen): # {{{
     return ()
 
   def on_input_submitted(self, event: Input.Submitted):
-    """TODO Handle command submission"""
-    return
+    """Handles command submission"""
+    command = event.value.strip()
+    if not command:
+      return
+
+    if command.startswith("select "):
+      column = command[7:]
+      history = self.query_one(QueryConstructionWidget)
+      history.add_selection(column)
+    elif command.startswith("add "):
+      column = command[4:]
+      history = self.query_one(QueryConstructionWidget)
+      history.add_selection(column)
+    elif command.startswith("filter "):
+      condition = command[7:]
+      history = self.query_one(QueryConstructionWidget)
+      history.add_filter(condition)
+
+    event.input.value = ""
 # }}}
 # }}}
 
