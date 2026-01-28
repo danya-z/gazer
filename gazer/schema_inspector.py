@@ -18,7 +18,7 @@ class SchemaInspector:
       WHERE table_schema = 'bdidata'
       ORDER BY table_name
     """
-    results = await self.db.execute_raw(query)
+    results = self.db.execute_query_raw(query)
     tables = [row[0] for row in results]
     return tables
   
@@ -40,7 +40,7 @@ class SchemaInspector:
       WHERE table_schema = 'bdidata' AND table_name = %s
       ORDER BY ordinal_position
     """
-    results = await self.db.execute_raw(query, (table_name,))
+    results = self.db.execute_query_raw(query, (table_name,))
     columns = []
     for row in results:
       columns.append({
@@ -67,7 +67,7 @@ class SchemaInspector:
         WHERE t.typname = %s
         ORDER BY e.enumsortorder
     """
-    results = await self.db.execute_raw(query, (enum_type_name,))
+    results = self.db.execute_query_raw(query, (enum_type_name,))
     enum_values = [row[0] for row in results]
     return enum_values
   
