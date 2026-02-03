@@ -25,7 +25,8 @@ curl -sSL https://install.python-poetry.org | python3 -
 # Or on Windows (PowerShell)
 (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | python -
 ```
-    Verify installation: `poetry --version`
+
+  Verify installation: `poetry --version`
 
 2. **VPN Access** - Gazer can only connect to the database if you are under the Purdue's "Zone-network-clients" VPN.
 
