@@ -78,15 +78,15 @@ class SchemaInspector:
     results = self.db.execute_query_raw(query, (table_name,))
     columns = []
     for row in results:
-      columns.append({
+      col = {
         'name': row[0],
         'type': row[1],
         'nullable': row[2] == 'YES',
         'default': row[3],
-        'udt_name': row[4]  # User-defined type (for enums)
+        'udt_name': row[4],  # User-defined type (for enums)
         'is_primary_key': row[5],
         'is_foreign_key': row[6],
-      })
+      }
       # Add foreign key reference if exists
       if row[6]:
         col['fk_table'] = row[7]
