@@ -9,6 +9,7 @@ from textual.binding import Binding
 from db_connector import DBConnector
 from schema_inspector import SchemaInspector
 from query_builder import QueryBuilder
+from sql_builder_screen import SQLBuilderScreen
 from memory import Config
 
 #Gazer App {{{
@@ -182,7 +183,7 @@ class ConnectionScreen(Screen):
     app.db = db
     app.schema_inspector = SchemaInspector(db)
     app.query_builder = QueryBuilder()
-    app.push_screen(QueryBuilderScreen())
+    app.push_screen(SQLBuilderScreen(app.schema_inspector))
 
   def show_error(self, exception):
     """Display error message screen."""
@@ -242,9 +243,6 @@ class ErrorScreen(Screen):
       f"✓ Copied to clipboard!"
     )
 #}}}
-
-# SQL Builder Screen {{{
-# }}}
 
 def main():
   app = GazerApp()

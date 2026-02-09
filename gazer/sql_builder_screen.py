@@ -1,6 +1,7 @@
 # sql_builder_screen.py
 
 from textual.app import ComposeResult
+from textual import work 
 from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Static, Input, Label, Header, Footer
@@ -11,6 +12,13 @@ class SQLBuilderScreen(Screen):
   BINDINGS = [
     ("escape", "app.pop_screen", "Back"),
   ]
+
+  def __init__(self, schema_inspector):
+    """Initialize, with a SchemaInspector instance."""
+    super().__init__()
+    self.inspector = schema_inspector
+    self.tables = []
+    self.current_table_columns = {}
 
   # CSS {{{
   CSS_PATH = "gazer.tcss"
@@ -118,15 +126,7 @@ class SQLBuilderScreen(Screen):
       with Container(id="schema-panel"):
         yield Label("SCHEMA:", classes="section-title")
         with ScrollableContainer(id="schema-content"):
-          yield Static("Table_Name", classes="table-name")
-          yield Static("  ├─ Column_name; type; table_id")
-          yield Static("  ├─ Column_name; type; link → column'")
-          yield Static("  └─ ...")
-          yield Static("")
-          yield Static("Another_Table", classes="table-name")
-          yield Static("  ├─ Column_name; type; table_id")
-          yield Static("  ├─ Column_name; type; link → column'")
-          yield Static("  └─ ...")
+          yield Static("Fetching Schema...")
       # }}}
 
     yield Footer()
@@ -134,13 +134,47 @@ class SQLBuilderScreen(Screen):
   def on_mount(self) -> None:
     """Called when screen is mounted."""
     self.query_one("#select-input", Input).focus()
+    self.load_schema()
 
-if __name__ == "__main__":
-  from textual.app import App
+  @work(exclusive=True, thread=True)
+  def load_schema(self) -> None:
+    """Load schema data from the database in a background thread."""
+    try: 
+      tables = self.inspector.get_tables()
+      schema_data = []
+      for table in tables:
+        columns = self.inspector.get_columns(table)
+        schema_data.append({
+          'table': table,
+          'columns': columns
+        })
+      self.app.call_from_thread(self.display_schema, schema_data)
 
-  class TestApp(App):
-    def on_mount(self) -> None:
-      self.push_screen(SQLBuilderScreen())
+    except Exception as e:
+      self.app.call_from_thread(self.display_schema_error, str(e))
 
-  app = TestApp()
-  app.run()
+  def display_schema(self, schema_data: list) -> None:
+    """Display the schema in the schema panel."""
+    container = self.query_one("#schema-content", ScrollableContainer)
+    container.remove_children()
+
+    for item in schema_data:
+      table_name = item['table']
+      columns = item['columns']
+
+      container.mount(Static(table_name, classes="table-name"))
+      for col in columns: 
+        col_str = f"  ├─ {col['name']}; {col['udt_name']}"
+        if col['is_primary_key']:
+          col_str += "; PK"
+        if col['is_foreign_key']:
+          col_str += f"; FK→{col['fk_table']}.{col['fk_column']}"
+
+        container.mount(Static(col_str))
+      container.mount(Static(""))
+
+  def display_schema_error(self, error_msg: str) -> None:
+    """Display an error message in the schema panel."""
+    container = self.query_one("#schema-content", ScrollableContainer)
+    container.remove_children()
+    container.mount(Static(f"Error loading schema: {error_msg}", classes="user-error"))
