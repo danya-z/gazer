@@ -1,8 +1,8 @@
 # sql_builder_screen.py
 
 from textual.app import ComposeResult
-from textual import work 
-from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
+from textual import work
+from textual.containers import Container, Horizontal, Vertical, ScrollableContainer # TODO: Horizontal is imported but never used — remove it
 from textual.screen import Screen
 from textual.widgets import Static, Input, Label, Header, Footer
 
@@ -21,7 +21,7 @@ class SQLBuilderScreen(Screen):
     self.current_table_columns = {}
 
   # CSS {{{
-  CSS_PATH = "gazer.tcss"
+  CSS_PATH = "gazer.tcss" # TODO: Both CSS_PATH and inline CSS are set — Textual merges them but this is confusing. The external gazer.tcss also defines #schema-panel styles that may conflict with the inline CSS below. Pick one approach
   CSS = """
   SQLBuilderScreen {
       layout: vertical;
@@ -101,7 +101,7 @@ class SQLBuilderScreen(Screen):
             id="select-input"
           )
           with ScrollableContainer(classes="content-area"):
-            yield Static("-- Imported from .../Table.xlsx")
+            yield Static("-- Imported from .../Table.xlsx") # TODO: Hardcoded placeholder content — these static strings should be replaced with dynamic content or removed. They look like mockup data left from prototyping
             yield Static("- Table_name.Column_name")
             yield Static("- Table_name.Column_name")
             yield Static("- Table_name.Column_name")
@@ -115,7 +115,7 @@ class SQLBuilderScreen(Screen):
             id="filter-input"
           )
           with ScrollableContainer(classes="content-area"):
-            yield Static("AND┌─ OR ┌─── Imported from .../Table.xlsx")
+            yield Static("AND┌─ OR ┌─── Imported from .../Table.xlsx") # TODO: Same — hardcoded placeholder/mockup content. Should be dynamic or removed
             yield Static("   │     ├─ Table_name.Column_name > 30")
             yield Static("   │     └─ Table_name.Column_name NOT NULL")
             yield Static("   ├─ AND┌─ Table_name.Column_name = STUFF")
@@ -150,7 +150,7 @@ class SQLBuilderScreen(Screen):
         })
       self.app.call_from_thread(self.display_schema, schema_data)
 
-    except Exception as e:
+    except Exception as e: # TODO: Catching all exceptions and converting to str loses the exception type and traceback — consider logging the full traceback and/or passing the exception object
       self.app.call_from_thread(self.display_schema_error, str(e))
 
   def display_schema(self, schema_data: list) -> None:
@@ -163,7 +163,7 @@ class SQLBuilderScreen(Screen):
       columns = item['columns']
 
       container.mount(Static(table_name, classes="table-name"))
-      for col in columns: 
+      for col in columns: # TODO: All columns use the "├─" connector — the last column in each table should use "└─" for correct tree drawing
         col_str = f"  ├─ {col['name']}; {col['udt_name']}"
         if col['is_primary_key']:
           col_str += "; PK"

@@ -1,7 +1,7 @@
-from db_connector import DBConnector 
+from db_connector import DBConnector # TODO: Relative import without leading dot — use `from .db_connector import DBConnector`
 
 class SchemaInspector:
-  def __init__(self, DBConnector):
+  def __init__(self, DBConnector): # TODO: Parameter name `DBConnector` shadows the class import on line 1 — rename to `db_connector` or `db` to avoid confusion
     self.db = DBConnector
     self._cache = {}
   
@@ -13,11 +13,11 @@ class SchemaInspector:
   
   def fetch_tables(self):
     query = """
-      SELECT table_name 
-      FROM information_schema.tables 
+      SELECT table_name
+      FROM information_schema.tables
       WHERE table_schema = 'bdidata'
       ORDER BY table_name
-    """
+    """ # TODO: Schema name 'bdidata' is hardcoded in multiple queries — extract to a class-level constant or constructor parameter
     results = self.db.execute_query_raw(query)
     tables = [row[0] for row in results]
     return tables
@@ -30,8 +30,9 @@ class SchemaInspector:
     return self._cache[cache_key]
   
   def fetch_columns(self, table_name):
+    # TODO: No error handling — if the table doesn't exist or the DB connection drops, the raw psycopg2 exception will propagate unhandled
     query = """
-      SELECT 
+      SELECT
           c.column_name,
           c.data_type,
           c.is_nullable,
@@ -77,7 +78,7 @@ class SchemaInspector:
     """
     results = self.db.execute_query_raw(query, (table_name,))
     columns = []
-    for row in results:
+    for row in results: # TODO: Accessing columns by numeric index (row[0], row[1], etc.) is fragile — if the query changes, all indices silently break. Consider using a dict cursor or named constants
       col = {
         'name': row[0],
         'type': row[1],

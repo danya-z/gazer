@@ -22,6 +22,7 @@ Screen {
   height: 1fr;
 }
 
+/* TODO: #schema-panel styles here conflict with the inline CSS in sql_builder_screen.py which also defines #schema-panel — the inline CSS sets width:1fr and border:solid blue, which will override/merge with these styles unpredictably */
 #schema-panel {
   width: 50%;
   height: 100%;
@@ -32,6 +33,7 @@ Screen {
   content-align: left top;
 }
 
+/* TODO: #command-history-panel is defined but never used in any screen — dead CSS */
 #command-history-panel {
   width: 50%;
   height: 100%;
@@ -79,6 +81,7 @@ Screen {
   padding: 1;
 }
 
+/* TODO: This styles ALL Horizontal containers globally — affects every screen, including SQLBuilderScreen if it ever uses Horizontal. Scope this to specific screens or use a class selector instead */
 Horizontal {
   align: center middle;
   width: 100%;

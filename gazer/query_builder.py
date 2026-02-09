@@ -31,7 +31,7 @@ class QueryBuilder:
 
     if full_column not in self._columns:
       self._columns.append(full_column)
-      return self
+      return self # TODO: Returns self only when column is new — returns None when column already exists, which breaks method chaining (e.g. `qb.add_column('x').add_filter(...)` raises AttributeError if 'x' is a duplicate). Add `return self` after the if block
 
   def add_columns(self, *columns):
     """Add multiple columns to SELECT.
@@ -59,6 +59,7 @@ class QueryBuilder:
       on_clause: Join condition (e.g., 'wells.treatment_id = treatments.treatment_id')
       join_type: 'INNER', 'LEFT', 'RIGHT', 'FULL' (default: 'INNER')
     """
+    # TODO: No validation of join_type — invalid values like 'BANANA' would produce broken SQL. Validate against allowed set {'INNER', 'LEFT', 'RIGHT', 'FULL'}
     self._joins.append({
       'table': table,
       'on': on_clause,
@@ -101,6 +102,7 @@ class QueryBuilder:
       .add_filter('concentration', '>', 0.5)
       .add_filter('name', '=', 'John', table_name='researchers')
     """
+    # TODO: No validation of the operator parameter — arbitrary strings are accepted, which could produce invalid or dangerous SQL. Validate against an allowed set
     if table_name:
       full_column = f"{table_name}.{column}"
     else:
@@ -150,7 +152,7 @@ class QueryBuilder:
     # Build WHERE clause
     if self._filters:
       conditions = []
-      for f in self._filters:
+      for f in self._filters: # TODO: All filters are joined with AND only — there is no support for OR logic or grouped conditions. Consider adding an OR combinator
         condition = self._format_filter(f)
         conditions.append(condition)
       where_clause = ' AND\n      '.join(conditions)
@@ -189,12 +191,13 @@ class QueryBuilder:
   
   def _quote_value(self, value):
     """Quote a value for SQL"""
+    # TODO: Manual SQL value escaping is fragile and risks injection — consider using psycopg2's parameterized queries instead of string interpolation throughout the builder
     if value is None:
       return 'NULL'
     elif isinstance(value, str):
-      escaped = value.replace("'", "''")
+      escaped = value.replace("'", "''") # TODO: Only escapes single quotes — does not handle backslashes or other special characters that some PostgreSQL configurations may interpret
       return f"'{escaped}'"
-    elif isinstance(value, bool):
+    elif isinstance(value, bool): # TODO: This branch is unreachable if a bool is passed to add_filter — bool is a subclass of int, but it's checked after str (which is correct) and before else. However, if the isinstance order ever changes, bools would be silently cast via str(value) to "True"/"False" instead of SQL TRUE/FALSE
       return 'TRUE' if value else 'FALSE'
     else:
       return str(value)
