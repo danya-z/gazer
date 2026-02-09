@@ -6,12 +6,12 @@ class SchemaInspector:
     self._cache = {}
   
   # Tables
-  async def get_tables(self):
+  def get_tables(self):
     if 'tables' not in self._cache:
-      self._cache['tables'] = await self.fetch_tables()
+      self._cache['tables'] = self.fetch_tables()
     return self._cache['tables']
   
-  async def fetch_tables(self):
+  def fetch_tables(self):
     query = """
       SELECT table_name 
       FROM information_schema.tables 
@@ -23,13 +23,13 @@ class SchemaInspector:
     return tables
   
   # Columns
-  async def get_columns(self, table_name):
+  def get_columns(self, table_name):
     cache_key = f'columns_{table_name}'
     if cache_key not in self._cache:
-      self._cache[cache_key] = await self.fetch_columns(table_name)
+      self._cache[cache_key] = self.fetch_columns(table_name)
     return self._cache[cache_key]
   
-  async def fetch_columns(self, table_name):
+  def fetch_columns(self, table_name):
     query = """
       SELECT 
           c.column_name,
@@ -95,13 +95,13 @@ class SchemaInspector:
     return columns
   
   # Enums
-  async def get_enum_values(self, enum_type_name):
+  def get_enum_values(self, enum_type_name):
     cache_key = f'enum_{enum_type_name}'
     if cache_key not in self._cache:
-      self._cache[cache_key] = await self.fetch_enum_values(enum_type_name)
+      self._cache[cache_key] = self.fetch_enum_values(enum_type_name)
     return self._cache[cache_key]
   
-  async def fetch_enum_values(self, enum_type_name):
+  def fetch_enum_values(self, enum_type_name):
     query = """
         SELECT e.enumlabel
         FROM pg_type t 
@@ -113,17 +113,17 @@ class SchemaInspector:
     enum_values = [row[0] for row in results]
     return enum_values
   
-  async def get_table_enums(self, table_name):
+  def get_table_enums(self, table_name):
     """Get all enum columns for a table with their possible values.
     Returns:
         dict: {column_name: [enum_values]}
     """
-    columns = await self.get_columns(table_name)
+    columns = self.get_columns(table_name)
     enums = {}
     for col in columns:
       if col['type'] == 'USER-DEFINED':
         enum_type = col['udt_name']
-        enum_values = await self.get_enum_values(enum_type)
+        enum_values = self.get_enum_values(enum_type)
         if enum_values:  # Only include if we found values
           enums[col['name']] = enum_values
     return enums
