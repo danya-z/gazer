@@ -135,7 +135,6 @@ class SQLBuilderScreen(Screen):
     """Called when screen is mounted."""
     self.query_one("#select-input", Input).focus()
 
-# Add to main app to test
 if __name__ == "__main__":
   from textual.app import App
 

@@ -31,14 +31,49 @@ class SchemaInspector:
   
   async def fetch_columns(self, table_name):
     query = """
-      SELECT column_name,
-             data_type,
-             is_nullable,
-             column_default,
-             udt_name
-      FROM information_schema.columns
-      WHERE table_schema = 'bdidata' AND table_name = %s
-      ORDER BY ordinal_position
+      SELECT 
+          c.column_name,
+          c.data_type,
+          c.is_nullable,
+          c.column_default,
+          c.udt_name,
+          -- Check if it's a primary key
+          CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END as is_primary_key,
+          -- Check if it's a foreign key
+          CASE WHEN fk.column_name IS NOT NULL THEN true ELSE false END as is_foreign_key,
+          -- Get foreign key reference if it exists
+          fk.foreign_table_name,
+          fk.foreign_column_name
+      FROM information_schema.columns c
+      -- Join to get primary key info
+      LEFT JOIN (
+          SELECT ku.table_name, ku.column_name
+          FROM information_schema.table_constraints tc
+          JOIN information_schema.key_column_usage ku
+              ON tc.constraint_name = ku.constraint_name
+              AND tc.table_schema = ku.table_schema
+          WHERE tc.constraint_type = 'PRIMARY KEY'
+              AND tc.table_schema = 'bdidata'
+      ) pk ON c.table_name = pk.table_name AND c.column_name = pk.column_name
+      -- Join to get foreign key info
+      LEFT JOIN (
+          SELECT
+              ku.table_name,
+              ku.column_name,
+              ccu.table_name AS foreign_table_name,
+              ccu.column_name AS foreign_column_name
+          FROM information_schema.table_constraints tc
+          JOIN information_schema.key_column_usage ku
+              ON tc.constraint_name = ku.constraint_name
+              AND tc.table_schema = ku.table_schema
+          JOIN information_schema.constraint_column_usage ccu
+              ON tc.constraint_name = ccu.constraint_name
+              AND tc.table_schema = ccu.table_schema
+          WHERE tc.constraint_type = 'FOREIGN KEY'
+              AND tc.table_schema = 'bdidata'
+      ) fk ON c.table_name = fk.table_name AND c.column_name = fk.column_name
+      WHERE c.table_schema = 'bdidata' AND c.table_name = %s
+      ORDER BY c.ordinal_position
     """
     results = self.db.execute_query_raw(query, (table_name,))
     columns = []
@@ -49,7 +84,14 @@ class SchemaInspector:
         'nullable': row[2] == 'YES',
         'default': row[3],
         'udt_name': row[4]  # User-defined type (for enums)
+        'is_primary_key': row[5],
+        'is_foreign_key': row[6],
       })
+      # Add foreign key reference if exists
+      if row[6]:
+        col['fk_table'] = row[7]
+        col['fk_column'] = row[8]
+      columns.append(col)
     return columns
   
   # Enums
