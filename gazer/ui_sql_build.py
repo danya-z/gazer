@@ -1,10 +1,16 @@
-# sql_builder_screen.py
+from __future__ import annotations
+from typing import TYPE_CHECKING, cast
 
 from textual.app import ComposeResult
 from textual import work
 from textual.containers import Container, Vertical, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Static, Input, Label, Header, Footer
+
+from .ui_error import ErrorOverlay
+
+if TYPE_CHECKING:
+  from .ui_main import GazerApp
 
 class SQLBuilderScreen(Screen):
   """Screen for building SQL queries with SELECT, FILTER, and SCHEMA panels."""
@@ -90,9 +96,8 @@ class SQLBuilderScreen(Screen):
       self.app.call_from_thread(self.display_schema, schema_data)
 
     except Exception as e:
-      # TODO: Replace with centralized error_display widget
       error_msg = f"{type(e).__name__}: {e}"
-      self.app.call_from_thread(self.display_schema_error, error_msg)
+      self.app.call_from_thread(self.show_error, "Schema", error_msg)
 
   def display_schema(self, schema_data: list) -> None:
     """Display the schema in the schema panel."""
@@ -115,8 +120,17 @@ class SQLBuilderScreen(Screen):
         container.mount(Static(col_str))
       container.mount(Static(""))
 
-  def display_schema_error(self, error_msg: str) -> None:
-    """Display an error message in the schema panel."""
-    container = self.query_one("#schema-content", ScrollableContainer)
-    container.remove_children()
-    container.mount(Static(f"Error loading schema: {error_msg}", classes="user-error"))
+  def show_error(self, category: str, user_msg: str, technical: str = "") -> None:
+    """Show an error overlay."""
+    self.app.push_screen(ErrorOverlay(category, user_msg, technical or user_msg))
+
+  def safe_build(self):
+    """Build the query, catching errors and showing them to the user.
+    Returns (sql, params) on success, None on failure.
+    """
+    app = cast(GazerApp, self.app)
+    try:
+      return app.query_builder.build()
+    except (ValueError, RuntimeError) as e:
+      self.show_error("Query", str(e))
+      return None

@@ -49,7 +49,7 @@ class GazerApp(App):
     self.exit()
 #}}}
 
-# Connection Screen {{{
+# Connection Screen 
 class ConnectionScreen(Screen):
   BINDINGS = [
     Binding("escape", "app.quit", "Quit"),
@@ -164,21 +164,28 @@ class ConnectionScreen(Screen):
     try:
       db = DBConnector(host, port, database, username, password)
       db.connect(timeout=5)
-      # Fetch and cache FK relationships (blocking I/O, runs in thread)
-      inspector = SchemaInspector(db)
-      fk_list = inspector.fetch_all_foreign_keys()
-      save_cache(host, database, fk_list)
-      # Success
-      self.app.call_from_thread(self.connection_success, db, username, inspector, fk_list)
-
     except Exception as e:
-      # Cleanup on failure
       if db is not None:
         try:
           db.close()
         except Exception:
           pass
       self.app.call_from_thread(self.show_error, e)
+      return
+
+    # Connection succeeded — fetch FK relationships (non-fatal if this fails)
+    inspector = SchemaInspector(db)
+    fk_list = []
+    try:
+      fk_list = inspector.fetch_all_foreign_keys()
+      save_cache(host, database, fk_list)
+    except Exception as e:
+      error_msg = f"{type(e).__name__}: {e}"
+      self.app.call_from_thread(
+        self.show_schema_warning, error_msg
+      )
+
+    self.app.call_from_thread(self.connection_success, db, username, inspector, fk_list)
 
   def connection_success(self, db: DBConnector, username: str, inspector: SchemaInspector, fk_list: list):
     """Called on successful connection from main thread"""
@@ -191,6 +198,14 @@ class ConnectionScreen(Screen):
     app.query_builder = QueryBuilder()
     app.query_builder.set_foreign_keys(fk_list)
     app.push_screen(SQLBuilderScreen(app.schema_inspector))
+
+  def show_schema_warning(self, error_msg):
+    """Show non-fatal schema fetch error. Connection still proceeds."""
+    self.app.push_screen(ErrorOverlay(
+      "Schema",
+      "Failed to load FK relationships. Auto-joins will not be available.",
+      error_msg,
+    ))
 
   def show_error(self, exception):
     """Display error message screen."""
@@ -212,7 +227,6 @@ class ConnectionScreen(Screen):
 
     self.app.push_screen(ErrorOverlay(error_category, user_msg, raw_error))
   #}}}
-#}}}
 
 def main():
   app = GazerApp()
