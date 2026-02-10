@@ -1,3 +1,7 @@
+/* ===========================
+   Global Styles
+   =========================== */
+
 Screen {
   align: left top;
 }
@@ -11,6 +15,10 @@ Screen {
   outline: double $accent;
 }
 
+/* ===========================
+   Connection Screen
+   =========================== */
+
 #welcome {
   text-align: left;
   padding: 1;
@@ -18,30 +26,10 @@ Screen {
   outline: solid $primary;
 }
 
-#main-content {
-  height: 1fr;
-}
-
-/* TODO: #schema-panel styles here conflict with the inline CSS in sql_builder_screen.py which also defines #schema-panel — the inline CSS sets width:1fr and border:solid blue, which will override/merge with these styles unpredictably */
-#schema-panel {
-  width: 50%;
-  height: 100%;
-  outline: solid $primary;
-  padding: 1;
-  overflow-y: auto;
-  align: left top;
-  content-align: left top;
-}
-
-/* TODO: #command-history-panel is defined but never used in any screen — dead CSS */
-#command-history-panel {
-  width: 50%;
-  height: 100%;
-  outline: solid $primary;
-  padding: 1;
-  overflow-y: auto;
-  align: left top;
-  content-align: left top;
+ConnectionScreen Horizontal {
+  align: center middle;
+  width: 100%;
+  height: auto;
 }
 
 .simple_input {
@@ -58,6 +46,10 @@ Screen {
   margin: 1 2;
   min-height: 3;
 }
+
+/* ===========================
+   Error Screen
+   =========================== */
 
 .user-error {
   text-style: bold;
@@ -81,9 +73,59 @@ Screen {
   padding: 1;
 }
 
-/* TODO: This styles ALL Horizontal containers globally — affects every screen, including SQLBuilderScreen if it ever uses Horizontal. Scope this to specific screens or use a class selector instead */
-Horizontal {
-  align: center middle;
-  width: 100%;
-  height: auto;
+/* ===========================
+   SQL Builder Screen
+   =========================== */
+
+SQLBuilderScreen {
+  layout: vertical;
+}
+
+#main-container {
+  layout: horizontal;
+  width: 1fr;
+}
+
+#builder-panel {
+  width: 1fr;
+  border: solid green;
+}
+
+#schema-panel {
+  width: 1fr;
+  border: solid blue;
+}
+
+#select-section {
+  height: 1fr;
+  border: solid yellow;
+}
+
+#filter-section {
+  height: 2fr;
+  border: solid yellow;
+}
+
+.section-title {
+  background: $primary;
+  color: $text;
+  padding: 0 1;
+  text-style: bold;
+}
+
+.inline-input {
+  margin: 0 1;
+  border: solid $accent;
+}
+
+.content-area {
+  height: 1fr;
+  border: solid $panel;
+  margin: 0 1 1 1;
+}
+
+#schema-content {
+  height: 1fr;
+  border: solid $panel;
+  margin: 0 1 1 1;
 }
