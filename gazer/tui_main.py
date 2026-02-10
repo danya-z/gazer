@@ -1,11 +1,12 @@
 from typing import cast
-from textual import work # For threads
+from textual import work
 from textual.app import App
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Static, Input, Label
 from textual.containers import Vertical, Horizontal
 from textual.binding import Binding
 import pyperclip
+import platform
 
 from .db_connector import DBConnector
 from .schema_inspector import SchemaInspector
@@ -34,22 +35,18 @@ class GazerApp(App):
     self.push_screen(ConnectionScreen())
   
 
-  def cleanup_sync(self):
+  def cleanup(self):
     """Synchronous cleanup for emergency shutdown"""
     if self.db is not None:
       try:
         self.db.close()
         self.log.info("Database connection closed (sync)")
-      except Exception as e: # TODO: Catching broad Exception — consider catching psycopg2.Error specifically
+      except Exception as e:
         self.log.error(f"Error closing database: {e}")
 
-  async def cleanup(self):
-    """Clean up database connection"""
-    self.cleanup_sync() # TODO: This async method just calls a sync method — the async wrapper adds nothing, either make cleanup_sync actually async or remove the async def
-  
   async def action_quit(self):
     """Quit application"""
-    await self.cleanup()
+    self.cleanup()
     self.exit()
 #}}}
 
@@ -100,6 +97,10 @@ class ConnectionScreen(Screen):
     yield Static("", id="error_display")
     yield Footer()
   
+  def on_mount(self):
+    if self.config.get_username():
+      self.query_one("#password", Input).focus()
+
   def on_input_submitted(self, event: Input.Submitted):
     if event.input.id == "username":
       password_input = self.query_one("#password", Input)
@@ -132,7 +133,7 @@ class ConnectionScreen(Screen):
     """Start animated 'Connecting...' message."""
     self._connecting = True
     self._animation_dots = 0
-    self.set_interval(0.5, self.update_connecting_animation) # TODO: The returned Timer is never stored — it can't be properly cancelled on cleanup, which could cause callbacks after screen is dismissed
+    self._animation_timer = self.set_interval(0.5, self.update_connecting_animation)
   
   def update_connecting_animation(self):
     """Update the connecting animation."""
@@ -151,13 +152,14 @@ class ConnectionScreen(Screen):
   def stop_connecting_animation(self):
     """Stop the connecting animation and clear message."""
     self._connecting = False
+    self._animation_timer.stop()
     error_display = self.query_one("#error_display", Static)
     error_display.update("")
   # }}}
 
   # DB Connection {{{
   @work(exclusive=True, thread=True)
-  async def connect_worker(self, host: str, port: str, database: str, username:str, password: str): # TODO: `async` is unnecessary on a thread=True worker — the @work(thread=True) decorator runs this in a thread, not an event loop
+  def connect_worker(self, host: str, port: str, database: str, username: str, password: str):
     """Worker to handle the blocking database connection."""
     db = None
     try:
@@ -171,7 +173,7 @@ class ConnectionScreen(Screen):
       if db is not None:
         try:
           db.close()
-        except Exception: # TODO: Bare except — swallows all exceptions including KeyboardInterrupt and SystemExit. Use `except Exception:` at minimum
+        except Exception:
           pass
       self.app.call_from_thread(self.show_error, e)
 
@@ -237,8 +239,21 @@ class ErrorScreen(Screen):
   
   def action_copy_error(self):
     """Copy error to clipboard."""
-    pyperclip.copy(self.technical_details) # TODO: No error handling — pyperclip raises PyperclipException on headless Linux (no xclip/xsel). Wrap in try/except and show a user-friendly message
-    self.query_one("#copy_hint", Static).update("✓ Copied to clipboard!")
+    hint = self.query_one("#copy_hint", Static)
+    try:
+      pyperclip.copy(self.technical_details)
+      hint.update("Copied to clipboard!")
+    except pyperclip.PyperclipException:
+      system = platform.system()
+      if system == "Linux":
+        msg = "Copy failed — try: sudo apt install xclip"
+      elif system == "Darwin":
+        msg = "Copy failed — try: brew install pbcopy"
+      elif system == "Windows":
+        msg = "Copy failed — clipboard access denied"
+      else:
+        msg = "Copy failed — no clipboard backend available"
+      hint.update(msg)
 #}}}
 
 def main():
@@ -246,7 +261,7 @@ def main():
   try:
     app.run()
   except KeyboardInterrupt:
-    app.cleanup_sync()
+    app.cleanup()
 
 if __name__ == '__main__':
   main()
