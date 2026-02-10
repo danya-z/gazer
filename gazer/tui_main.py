@@ -12,7 +12,8 @@ from .db_connector import DBConnector
 from .schema_inspector import SchemaInspector
 from .query_builder import QueryBuilder
 from .sql_builder_screen import SQLBuilderScreen
-from .memory import Config
+from .config import Config
+from .schema_cache import save_cache
 
 #Gazer App {{{
 class GazerApp(App):
@@ -165,9 +166,13 @@ class ConnectionScreen(Screen):
     try:
       db = DBConnector(host, port, database, username, password)
       db.connect(timeout=5)
+      # Fetch and cache FK relationships (blocking I/O, runs in thread)
+      inspector = SchemaInspector(db)
+      fk_list = inspector.fetch_all_foreign_keys()
+      save_cache(host, database, fk_list)
       # Success
-      self.app.call_from_thread(self.connection_success, db, username)
-      
+      self.app.call_from_thread(self.connection_success, db, username, inspector, fk_list)
+
     except Exception as e:
       # Cleanup on failure
       if db is not None:
@@ -177,15 +182,16 @@ class ConnectionScreen(Screen):
           pass
       self.app.call_from_thread(self.show_error, e)
 
-  def connection_success(self, db: DBConnector, username: str):
+  def connection_success(self, db: DBConnector, username: str, inspector: SchemaInspector, fk_list: list):
     """Called on successful connection from main thread"""
     app = cast(GazerApp, self.app)
 
     self.stop_connecting_animation()
     self.config.set_username(username)
     app.db = db
-    app.schema_inspector = SchemaInspector(db)
+    app.schema_inspector = inspector
     app.query_builder = QueryBuilder()
+    app.query_builder.set_foreign_keys(fk_list)
     app.push_screen(SQLBuilderScreen(app.schema_inspector))
 
   def show_error(self, exception):
