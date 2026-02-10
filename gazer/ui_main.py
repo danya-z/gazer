@@ -3,15 +3,13 @@ from textual import work
 from textual.app import App
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Static, Input, Label
-from textual.containers import Vertical, Horizontal
+from textual.containers import Horizontal
 from textual.binding import Binding
-import pyperclip
-import platform
-
 from .core_connect import DBConnector
 from .core_schema import SchemaInspector
 from .core_sql_build import QueryBuilder
 from .ui_sql_build import SQLBuilderScreen
+from .ui_error import ErrorOverlay
 from .mem_config import Config
 from .mem_schema import save_cache
 
@@ -212,54 +210,8 @@ class ConnectionScreen(Screen):
     else:
       user_msg = "Gazer does not recognize the error."
 
-    self.app.push_screen(ErrorScreen(error_category, user_msg, raw_error))
+    self.app.push_screen(ErrorOverlay(error_category, user_msg, raw_error))
   #}}}
-#}}}
-
-# Error Screen {{{
-class ErrorScreen(Screen):
-  """Screen for displaying and copying error messages"""
-  BINDINGS = [
-    Binding("escape", "app.pop_screen", "Back"),
-    Binding("c", "copy_error", "Copy Error"),
-  ]
-  
-  def __init__(self, error_category, user_message, technical_details):
-    super().__init__()
-    self.error_category = error_category
-    self.user_message = user_message
-    self.technical_details = technical_details
-  
-  def compose(self):
-    yield Header()
-    yield Static(f"{self.error_category} Error", id="title")
-    
-    yield Vertical(
-      Static(f"{self.user_message}", classes="user-error"),
-      Static("Technical Details:", classes="error-label"),
-      Static(self.technical_details, id="error_details", classes="technical-error"),
-      Static("Press 'c' to copy error (technical details) to clipboard", id="copy_hint", classes="hint"),
-    )
-    
-    yield Footer()
-  
-  def action_copy_error(self):
-    """Copy error to clipboard."""
-    hint = self.query_one("#copy_hint", Static)
-    try:
-      pyperclip.copy(self.technical_details)
-      hint.update("Copied to clipboard!")
-    except pyperclip.PyperclipException:
-      system = platform.system()
-      if system == "Linux":
-        msg = "Copy failed — try: sudo apt install xclip"
-      elif system == "Darwin":
-        msg = "Copy failed — try: brew install pbcopy"
-      elif system == "Windows":
-        msg = "Copy failed — clipboard access denied"
-      else:
-        msg = "Copy failed — no clipboard backend available"
-      hint.update(msg)
 #}}}
 
 def main():

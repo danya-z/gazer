@@ -1,7 +1,48 @@
-# error_display.py
-# Centralized error display widget for Gazer.
-# Any screen can push this to show errors with copy-to-clipboard support.
-# TODO: Implement reusable ErrorScreen (extract from tui_main.py)
-#   - Non-fatal errors: dismiss and return to previous screen
-#   - Fatal errors: dismiss and quit
-#   - Copy error details to clipboard
+import pyperclip
+import platform
+from textual.binding import Binding
+from textual.screen import ModalScreen
+from textual.widgets import Static
+from textual.containers import Vertical
+
+
+class ErrorOverlay(ModalScreen):
+  """Modal error popup with dimmed background."""
+  BINDINGS = [
+    Binding("escape", "dismiss", "Dismiss", show=False),
+    Binding("c", "copy_error", "Copy Error", show=False),
+  ]
+
+  def __init__(self, error_category, user_message, technical_details):
+    super().__init__()
+    self.error_category = error_category
+    self.user_message = user_message
+    self.technical_details = technical_details
+
+  def compose(self):
+    with Vertical(id="error-box"):
+      yield Static(f"{self.error_category} Error", id="error-title")
+      yield Static(self.user_message, classes="user-error")
+      yield Static("Technical Details:", classes="error-label")
+      yield Static(self.technical_details, classes="technical-error")
+      yield Static("'c' copy | 'escape' dismiss", id="error-hint", classes="hint")
+
+  def action_dismiss(self):
+    self.dismiss()
+
+  def action_copy_error(self):
+    hint = self.query_one("#error-hint", Static)
+    try:
+      pyperclip.copy(self.technical_details)
+      hint.update("Copied to clipboard!")
+    except pyperclip.PyperclipException:
+      system = platform.system()
+      if system == "Linux":
+        msg = "Copy failed — try: sudo apt install xclip"
+      elif system == "Darwin":
+        msg = "Copy failed — try: brew install pbcopy"
+      elif system == "Windows":
+        msg = "Copy failed — clipboard access denied"
+      else:
+        msg = "Copy failed — no clipboard backend available"
+      hint.update(msg)

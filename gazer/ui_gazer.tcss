@@ -48,8 +48,28 @@ ConnectionScreen Horizontal {
 }
 
 /* ===========================
-   Error Screen
+   Error Overlay
    =========================== */
+
+ErrorOverlay {
+  align: center middle;
+}
+
+#error-box {
+  width: 70;
+  height: auto;
+  max-height: 80%;
+  background: $surface;
+  border: thick $error;
+  padding: 1 2;
+}
+
+#error-title {
+  text-style: bold;
+  color: $error;
+  text-align: center;
+  padding: 0 0 1 0;
+}
 
 .user-error {
   text-style: bold;
