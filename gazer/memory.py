@@ -2,69 +2,57 @@ import json
 from pathlib import Path
 
 class Config:
-  """Manages configuration and cache for Gazer."""
+  """Manages configuration for Gazer, stored in ~/.gazer/config.json."""
+
+  DEFAULTS = {
+    "host": "ldvdbapgdb02a.itap.purdue.edu",
+    "port": "5433",
+    "database": "bdidata",
+    "username": "",
+  }
 
   def __init__(self):
-    # Store config and cache in gazer's memory directory
-    mem_dir = Path(__file__).parent.parent / "mem" # TODO: Fragile path resolution — assumes the package is always two levels deep from the mem/ directory. Breaks if the package is installed as a proper Python package. Consider using a config directory relative to the user's home (e.g., ~/.config/gazer/) or making mem_dir configurable
-    self.config_file = mem_dir / "config.json"
-    self.cache_file = mem_dir / "cache.json"
+    self._dir = Path.home() / ".gazer"
+    self._dir.mkdir(exist_ok=True)
+    self._config_file = self._dir / "config.json"
+    self._load()
 
-    # Load or create config
-    self._load_config()
-    self._load_cache()
-  
-  def _load_config(self):
-    """Load connection defaults from config file."""
-    if self.config_file.exists():
-      with open(self.config_file, 'r') as f:
-        self.config = json.load(f) # TODO: No error handling for malformed JSON — json.JSONDecodeError will crash the app if config.json is corrupted
-    else:
-      # Default config
-      self.config = {
-        "host": "ldvdbapgdb02a.itap.purdue.edu",
-        "port": "5433",
-        "database": "bdidata"
-      }
-      self._save_config()
-  
-  def _save_config(self):
+  def _load(self):
+    """Load config from file, falling back to defaults if missing or corrupted."""
+    if self._config_file.exists():
+      try:
+        with open(self._config_file, 'r') as f:
+          self._data = json.load(f)
+        return
+      except (json.JSONDecodeError, ValueError):
+        pass
+    self._data = dict(self.DEFAULTS)
+    self._save()
+
+  def _save(self):
     """Save config to file."""
-    with open(self.config_file, 'w') as f:
-      json.dump(self.config, f, indent=2)
-  
-  def _load_cache(self):
-    """Load cached username."""
-    if self.cache_file.exists():
-      with open(self.cache_file, 'r') as f:
-        self.cache = json.load(f) # TODO: Same — no error handling for malformed JSON in cache file
-    else:
-      self.cache = {"username": ""}
-  
-  def _save_cache(self):
-    """Save cache to file."""
-    with open(self.cache_file, 'w') as f:
-      json.dump(self.cache, f, indent=2)
-  
+    with open(self._config_file, 'w') as f:
+      json.dump(self._data, f, indent=2)
+
   def get_host(self):
-    return self.config.get("host", "")
-  
+    return self._data.get("host", self.DEFAULTS["host"])
+
   def get_port(self):
-    return self.config.get("port", "")
-  
+    return self._data.get("port", self.DEFAULTS["port"])
+
   def get_database(self):
-    return self.config.get("database", "")
-  
+    return self._data.get("database", self.DEFAULTS["database"])
+
   def get_username(self):
-    return self.cache.get("username", "")
-  
+    return self._data.get("username", "")
+
   def set_username(self, username):
-    self.cache["username"] = username
-    self._save_cache()
-  
+    self._data["username"] = username
+    self._save()
+
   def update_connection_settings(self, host, port, database):
-    """Update connection settings"""
-    self.config["host"] = host
-    self.config["port"] = port
-    self.config["database"] = database
-    self._save_config()
+    """Update connection settings."""
+    self._data["host"] = host
+    self._data["port"] = port
+    self._data["database"] = database
+    self._save()
