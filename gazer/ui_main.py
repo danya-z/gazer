@@ -8,19 +8,19 @@ from textual.binding import Binding
 import pyperclip
 import platform
 
-from .db_connector import DBConnector
-from .schema_inspector import SchemaInspector
-from .query_builder import QueryBuilder
-from .sql_builder_screen import SQLBuilderScreen
-from .config import Config
-from .schema_cache import save_cache
+from .core_connect import DBConnector
+from .core_schema import SchemaInspector
+from .core_sql_build import QueryBuilder
+from .ui_sql_build import SQLBuilderScreen
+from .mem_config import Config
+from .mem_schema import save_cache
 
 #Gazer App {{{
 class GazerApp(App):
   """Main Gazer TUI application."""
   TITLE = "Gazer"
   SUB_TITLE = "Database Query Builder"
-  CSS_PATH = "gazer.tcss"
+  CSS_PATH = "ui_gazer.tcss"
   BINDINGS = [
     Binding("escape", "quit", "Quit"),
   ]

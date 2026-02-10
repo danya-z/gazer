@@ -1,4 +1,4 @@
-from .db_connector import DBConnector
+from .core_connect import DBConnector
 
 class SchemaInspector:
   def __init__(self, connector: DBConnector, schema: str = "bdidata"):
