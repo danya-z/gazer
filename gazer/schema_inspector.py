@@ -133,6 +133,40 @@ class SchemaInspector:
           enums[col['name']] = enum_values
     return enums
   
+  # Foreign Keys
+  def fetch_all_foreign_keys(self):
+    """Fetch all FK relationships in the schema.
+    Returns:
+      list[dict]: each with from_table, from_column, to_table, to_column
+    """
+    query = """
+      SELECT
+          cl.relname AS from_table,
+          att.attname AS from_column,
+          cl_foreign.relname AS to_table,
+          att_foreign.attname AS to_column
+      FROM pg_constraint con
+      JOIN pg_class cl ON con.conrelid = cl.oid
+      JOIN pg_namespace ns ON cl.relnamespace = ns.oid
+      JOIN pg_attribute att ON att.attrelid = con.conrelid
+          AND att.attnum = ANY(con.conkey)
+      JOIN pg_class cl_foreign ON con.confrelid = cl_foreign.oid
+      JOIN pg_attribute att_foreign ON att_foreign.attrelid = con.confrelid
+          AND att_foreign.attnum = ANY(con.confkey)
+      WHERE con.contype = 'f'
+          AND ns.nspname = %s
+    """
+    results = self.connector.execute_query_raw(query, (self.schema,))
+    return [
+      {
+        'from_table': row['from_table'],
+        'from_column': row['from_column'],
+        'to_table': row['to_table'],
+        'to_column': row['to_column'],
+      }
+      for row in results
+    ]
+
   # Utils
   def refresh_cache(self, scope=None):
     """Refresh cached schema information.
