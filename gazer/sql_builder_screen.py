@@ -2,7 +2,7 @@
 
 from textual.app import ComposeResult
 from textual import work
-from textual.containers import Container, Horizontal, Vertical, ScrollableContainer # TODO: Horizontal is imported but never used — remove it
+from textual.containers import Container, Vertical, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Static, Input, Label, Header, Footer
 
@@ -19,69 +19,6 @@ class SQLBuilderScreen(Screen):
     self.inspector = schema_inspector
     self.tables = []
     self.current_table_columns = {}
-
-  # CSS {{{
-  CSS_PATH = "gazer.tcss" # TODO: Both CSS_PATH and inline CSS are set — Textual merges them but this is confusing. The external gazer.tcss also defines #schema-panel styles that may conflict with the inline CSS below. Pick one approach
-  CSS = """
-  SQLBuilderScreen {
-      layout: vertical;
-  }
-
-  #main-container {
-      layout: horizontal;
-      width: 1fr;
-  }
-
-  #builder-panel {
-      width: 1fr;
-      border: solid green;
-  }
-
-  #schema-panel {
-      width: 1fr;
-      border: solid blue;
-  }
-
-  /* Vertical split within builder: SELECT and FILTER */
-  #select-section {
-      height: 1fr;
-      border: solid yellow;
-  }
-
-  #filter-section {
-      height: 2fr;
-      border: solid yellow;
-  }
-
-  /* Section titles */
-  .section-title {
-      background: $primary;
-      color: $text;
-      padding: 0 1;
-      text-style: bold;
-  }
-
-  /* Input boxes for typing */
-  .inline-input {
-      margin: 0 1;
-      border: solid $accent;
-  }
-
-  /* Scrollable content areas */
-  .content-area {
-      height: 1fr;
-      border: solid $panel;
-      margin: 0 1 1 1;
-  }
-
-  /* Schema content area */
-  #schema-content {
-      height: 1fr;
-      border: solid $panel;
-      margin: 0 1 1 1;
-  }
-  """ 
-  # }}}
 
   def compose(self) -> ComposeResult:
     """Create the layout structure."""
@@ -101,7 +38,7 @@ class SQLBuilderScreen(Screen):
             id="select-input"
           )
           with ScrollableContainer(classes="content-area"):
-            yield Static("-- Imported from .../Table.xlsx") # TODO: Hardcoded placeholder content — these static strings should be replaced with dynamic content or removed. They look like mockup data left from prototyping
+            yield Static("-- Imported from .../Table.xlsx")
             yield Static("- Table_name.Column_name")
             yield Static("- Table_name.Column_name")
             yield Static("- Table_name.Column_name")
@@ -115,7 +52,7 @@ class SQLBuilderScreen(Screen):
             id="filter-input"
           )
           with ScrollableContainer(classes="content-area"):
-            yield Static("AND┌─ OR ┌─── Imported from .../Table.xlsx") # TODO: Same — hardcoded placeholder/mockup content. Should be dynamic or removed
+            yield Static("AND┌─ OR ┌─── Imported from .../Table.xlsx")
             yield Static("   │     ├─ Table_name.Column_name > 30")
             yield Static("   │     └─ Table_name.Column_name NOT NULL")
             yield Static("   ├─ AND┌─ Table_name.Column_name = STUFF")
@@ -139,7 +76,7 @@ class SQLBuilderScreen(Screen):
   @work(exclusive=True, thread=True)
   def load_schema(self) -> None:
     """Load schema data from the database in a background thread."""
-    try: 
+    try:
       tables = self.inspector.get_tables()
       schema_data = []
       for table in tables:
@@ -148,10 +85,14 @@ class SQLBuilderScreen(Screen):
           'table': table,
           'columns': columns
         })
+
+
       self.app.call_from_thread(self.display_schema, schema_data)
 
-    except Exception as e: # TODO: Catching all exceptions and converting to str loses the exception type and traceback — consider logging the full traceback and/or passing the exception object
-      self.app.call_from_thread(self.display_schema_error, str(e))
+    except Exception as e:
+      # TODO: Replace with centralized error_display widget
+      error_msg = f"{type(e).__name__}: {e}"
+      self.app.call_from_thread(self.display_schema_error, error_msg)
 
   def display_schema(self, schema_data: list) -> None:
     """Display the schema in the schema panel."""
@@ -163,8 +104,9 @@ class SQLBuilderScreen(Screen):
       columns = item['columns']
 
       container.mount(Static(table_name, classes="table-name"))
-      for col in columns: # TODO: All columns use the "├─" connector — the last column in each table should use "└─" for correct tree drawing
-        col_str = f"  ├─ {col['name']}; {col['udt_name']}"
+      for i, col in enumerate(columns):
+        connector = "└─" if i == len(columns) - 1 else "├─"
+        col_str = f"  {connector} {col['name']}; {col['udt_name']}"
         if col['is_primary_key']:
           col_str += "; PK"
         if col['is_foreign_key']:
