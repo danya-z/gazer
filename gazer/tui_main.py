@@ -1,16 +1,17 @@
 from typing import cast
-from textual import work # For threads # TODO: `work` is imported but never used in this file (it's used in sql_builder_screen.py) — remove this import
-from textual.app import App, ComposeResult # TODO: ComposeResult is imported but never used — remove it
+from textual import work # For threads
+from textual.app import App
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Static, Input, Label
-from textual.containers import Container, Vertical, Horizontal # TODO: Container and Vertical are imported but never used in this file — remove them
+from textual.containers import Vertical, Horizontal
 from textual.binding import Binding
+import pyperclip
 
-from db_connector import DBConnector # TODO: These are relative imports without leading dots — they work only if CWD is gazer/gazer. Use `from .db_connector import ...` for proper package imports
-from schema_inspector import SchemaInspector
-from query_builder import QueryBuilder
-from sql_builder_screen import SQLBuilderScreen
-from memory import Config
+from .db_connector import DBConnector
+from .schema_inspector import SchemaInspector
+from .query_builder import QueryBuilder
+from .sql_builder_screen import SQLBuilderScreen
+from .memory import Config
 
 #Gazer App {{{
 class GazerApp(App):
@@ -154,7 +155,7 @@ class ConnectionScreen(Screen):
     error_display.update("")
   # }}}
 
-  # DB Conection {{{ # TODO: Typo — "Conection" should be "Connection"
+  # DB Connection {{{
   @work(exclusive=True, thread=True)
   async def connect_worker(self, host: str, port: str, database: str, username:str, password: str): # TODO: `async` is unnecessary on a thread=True worker — the @work(thread=True) decorator runs this in a thread, not an event loop
     """Worker to handle the blocking database connection."""
@@ -170,7 +171,7 @@ class ConnectionScreen(Screen):
       if db is not None:
         try:
           db.close()
-        except: # TODO: Bare except — swallows all exceptions including KeyboardInterrupt and SystemExit. Use `except Exception:` at minimum
+        except Exception: # TODO: Bare except — swallows all exceptions including KeyboardInterrupt and SystemExit. Use `except Exception:` at minimum
           pass
       self.app.call_from_thread(self.show_error, e)
 
@@ -199,13 +200,12 @@ class ConnectionScreen(Screen):
     elif "no pg_hba.conf entry for host" in code_error:
       user_msg = "Authentication failed - Check username."
     elif "could not translate host name" in code_error:
-      user_msg = "Cannot reach host - Check VPN connectio." # TODO: Typo — "connectio" should be "connection"
+      user_msg = "Cannot reach host - Check VPN connection."
     else:
       user_msg = "Gazer does not recognize the error."
 
     self.app.push_screen(ErrorScreen(error_category, user_msg, raw_error))
   #}}}
-
 #}}}
 
 # Error Screen {{{
@@ -237,11 +237,8 @@ class ErrorScreen(Screen):
   
   def action_copy_error(self):
     """Copy error to clipboard."""
-    import pyperclip # TODO: Import inside function — move to top of file
     pyperclip.copy(self.technical_details) # TODO: No error handling — pyperclip raises PyperclipException on headless Linux (no xclip/xsel). Wrap in try/except and show a user-friendly message
-    self.query_one("#copy_hint", Static).update(
-      f"✓ Copied to clipboard!" # TODO: Unnecessary f-string prefix — no interpolation, just use a plain string
-    )
+    self.query_one("#copy_hint", Static).update("✓ Copied to clipboard!")
 #}}}
 
 def main():
