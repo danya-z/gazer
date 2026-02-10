@@ -35,6 +35,18 @@ class Filter:
       return f"{self.column} {op}", []
 
     if op in ("IN", "NOT IN"):
+      """ We need to handle two somewhat discreet cases
+        1. Weird or single value
+          Filter("status", "IN", "a") → values = ["a"]
+          Filter("status", "IN", 42) → values = [42]
+        If not list, values will be wrapped into one as 
+        values = [self.value]
+
+        2. List/tuple of values
+          Filter("status", "IN", ["a", "b"]) → values = ["a", "b"]
+        If list, we will just extract the list with
+        values = list(self.value)
+      """
       if not isinstance(self.value, (list, tuple)):
         values = [self.value]
       else:
@@ -98,9 +110,9 @@ class FilterGroup:
     if len(parts) == 1:
       return parts[0], params
 
-    joiner = f" {self.logic} "
-    combined = joiner.join(parts)
-    return f"({combined})", params
+    joiner = f" {self.logic} "      # E.g, " AND "
+    combined = joiner.join(parts)   # E.g, "filter AND filter AND filter"
+    return f"({combined})", params  # E.g, "(filter AND filter AND filter)", [params]
 
 
 class QueryBuilder:
