@@ -1,4 +1,5 @@
 import psycopg2
+from psycopg2.extras import DictCursor
 
 class DBConnector:
   def __init__(self, host: str, port: str, database: str, user: str, password: str):
@@ -24,7 +25,7 @@ class DBConnector:
   def execute_query_raw(self, sql: str, params=None):
     """Execute SELECT query and return a set"""
     if not self.conn: raise RuntimeError("Not connected to database")
-    with self.conn.cursor() as cur:
+    with self.conn.cursor(cursor_factory=DictCursor) as cur:
       cur.execute(sql, params or ())
       results = cur.fetchall()
 
@@ -33,7 +34,7 @@ class DBConnector:
   def execute_command(self, sql: str, params=None) -> int:
     """Execute INSERT/UPDATE/DELETE and return rowcount"""
     if not self.conn: raise RuntimeError("Not connected to database")
-    with self.conn.cursor() as cur:
+    with self.conn.cursor(cursor_factory=DictCursor) as cur:
       cur.execute(sql, params or ())
       rowcount = cur.rowcount
       self.conn.commit()
