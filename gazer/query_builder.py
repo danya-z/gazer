@@ -1,3 +1,4 @@
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -124,6 +125,27 @@ class QueryBuilder:
     self._columns = []
     self._joins = []
     self._root_group = FilterGroup("AND")
+    self._fk_graph = {}
+    return self
+
+  def set_foreign_keys(self, fk_list):
+    """Store FK relationships and build adjacency graph.
+    Args:
+      fk_list: list of dicts with from_table, from_column, to_table, to_column
+    """
+    graph = defaultdict(list)
+    for fk in fk_list:
+      graph[fk['from_table']].append({
+        'table': fk['to_table'],
+        'from_col': fk['from_column'],
+        'to_col': fk['to_column'],
+      })
+      graph[fk['to_table']].append({
+        'table': fk['from_table'],
+        'from_col': fk['to_column'],
+        'to_col': fk['from_column'],
+      })
+    self._fk_graph = dict(graph)
     return self
 
   # Building Blocks
@@ -209,6 +231,91 @@ class QueryBuilder:
     self._root_group = FilterGroup("AND")
     return self
 
+  # Auto-Join Resolution
+
+  def _get_referenced_tables(self):
+    """Collect all table names referenced in columns and filters."""
+    tables = set()
+    for col in self._columns:
+      if '.' in col:
+        tables.add(col.split('.')[0])
+    for child in self._root_group.children:
+      if isinstance(child, Filter) and '.' in child.column:
+        tables.add(child.column.split('.')[0])
+    tables.discard(self._table)
+    return tables
+
+  def _find_all_paths(self, start, target, visited=None):
+    """DFS to find all paths from start to target.
+    Returns list of paths, where each path is a list of
+    (from_table, from_col, to_table, to_col) tuples.
+    """
+    if visited is None:
+      visited = set()
+    visited = visited | {start}
+
+    if start == target:
+      return [[]]
+
+    paths = []
+    for edge in self._fk_graph.get(start, []):
+      neighbor = edge['table']
+      if neighbor in visited:
+        continue
+      step = (start, edge['from_col'], neighbor, edge['to_col'])
+      for sub_path in self._find_all_paths(neighbor, target, visited):
+        paths.append([step] + sub_path)
+    return paths
+
+  def _find_join_path(self, target):
+    """Find the unique FK path from self._table to target.
+    Returns:
+      list of (from_table, from_col, to_table, to_col) tuples.
+    Raises ValueError if no path or multiple paths exist.
+    """
+    start = self._table
+    if start == target:
+      return []
+
+    paths = self._find_all_paths(start, target)
+
+    if len(paths) == 0:
+      raise ValueError(f"No FK path from '{start}' to '{target}'")
+    if len(paths) > 1:
+      raise ValueError(
+        f"Ambiguous FK path from '{start}' to '{target}': "
+        f"found {len(paths)} paths"
+      )
+    return paths[0]
+
+  def _resolve_joins(self):
+    """Auto-add joins for tables referenced in columns/filters.
+    Returns list of join dicts to use in build().
+    """
+    manually_joined = {j['table'] for j in self._joins}
+    needed_tables = self._get_referenced_tables() - manually_joined
+
+    if needed_tables and not self._fk_graph:
+      raise ValueError(
+        f"Columns reference other tables {needed_tables} "
+        f"but no FK data is available. Call set_foreign_keys() first."
+      )
+    auto_joins = []
+
+    already_joined = {self._table} | manually_joined
+    for table in needed_tables:
+      path = self._find_join_path(table)
+      for from_table, from_col, to_table, to_col in path:
+        if to_table not in already_joined:
+          auto_joins.append({
+            'table': to_table,
+            'on': f"{from_table}.{from_col} = {to_table}.{to_col}",
+            'type': 'LEFT',
+          })
+          already_joined.add(to_table)
+
+    return list(self._joins) + auto_joins
+
   # Query Generation
 
   def build(self):
@@ -227,7 +334,8 @@ class QueryBuilder:
     columns_str = ',\n       '.join(self._columns)
     sql = f"SELECT {columns_str}\nFROM {self._table}"
 
-    for join in self._joins:
+    all_joins = self._resolve_joins()
+    for join in all_joins:
       sql += f"\n{join['type']} JOIN {join['table']} ON {join['on']}"
 
     if not self._root_group.is_empty():
