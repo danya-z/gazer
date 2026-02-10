@@ -11,6 +11,7 @@ from .ui_error import ErrorOverlay
 
 if TYPE_CHECKING:
   from .ui_main import GazerApp
+  from .core_sql_build import QueryBuilder
 
 class SQLBuilderScreen(Screen):
   """Screen for building SQL queries with SELECT, FILTER, and SCHEMA panels."""
@@ -92,7 +93,6 @@ class SQLBuilderScreen(Screen):
           'columns': columns
         })
 
-
       self.app.call_from_thread(self.display_schema, schema_data)
 
     except Exception as e:
@@ -129,8 +129,9 @@ class SQLBuilderScreen(Screen):
     Returns (sql, params) on success, None on failure.
     """
     app = cast(GazerApp, self.app)
+    query_builder = cast(QueryBuilder, app.query_builder)
     try:
-      return app.query_builder.build()
+      return query_builder.build()
     except (ValueError, RuntimeError) as e:
       self.show_error("Query", str(e))
       return None
