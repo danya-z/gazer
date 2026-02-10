@@ -1,3 +1,4 @@
+import atexit
 from typing import cast
 from textual import work
 from textual.app import App
@@ -230,10 +231,8 @@ class ConnectionScreen(Screen):
 
 def main():
   app = GazerApp()
-  try:
-    app.run()
-  except KeyboardInterrupt:
-    app.cleanup()
+  atexit.register(app.cleanup)
+  app.run()
 
 if __name__ == '__main__':
   main()
