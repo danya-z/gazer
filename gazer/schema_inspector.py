@@ -57,22 +57,23 @@ class SchemaInspector:
           WHERE tc.constraint_type = 'PRIMARY KEY'
               AND tc.table_schema = %s
       ) pk ON c.table_name = pk.table_name AND c.column_name = pk.column_name
-      -- Join to get foreign key info
+      -- Join to get foreign key info (uses pg_catalog, visible to all users)
       LEFT JOIN (
           SELECT
-              ku.table_name,
-              ku.column_name,
-              ccu.table_name AS foreign_table_name,
-              ccu.column_name AS foreign_column_name
-          FROM information_schema.table_constraints tc
-          JOIN information_schema.key_column_usage ku
-              ON tc.constraint_name = ku.constraint_name
-              AND tc.table_schema = ku.table_schema
-          JOIN information_schema.constraint_column_usage ccu
-              ON tc.constraint_name = ccu.constraint_name
-              AND tc.table_schema = ccu.table_schema
-          WHERE tc.constraint_type = 'FOREIGN KEY'
-              AND tc.table_schema = %s
+              cl.relname AS table_name,
+              att.attname AS column_name,
+              cl_foreign.relname AS foreign_table_name,
+              att_foreign.attname AS foreign_column_name
+          FROM pg_constraint con
+          JOIN pg_class cl ON con.conrelid = cl.oid
+          JOIN pg_namespace ns ON cl.relnamespace = ns.oid
+          JOIN pg_attribute att ON att.attrelid = con.conrelid
+              AND att.attnum = ANY(con.conkey)
+          JOIN pg_class cl_foreign ON con.confrelid = cl_foreign.oid
+          JOIN pg_attribute att_foreign ON att_foreign.attrelid = con.confrelid
+              AND att_foreign.attnum = ANY(con.confkey)
+          WHERE con.contype = 'f'
+              AND ns.nspname = %s
       ) fk ON c.table_name = fk.table_name AND c.column_name = fk.column_name
       WHERE c.table_schema = %s AND c.table_name = %s
       ORDER BY c.ordinal_position
