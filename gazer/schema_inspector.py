@@ -1,8 +1,9 @@
-from db_connector import DBConnector # TODO: Relative import without leading dot — use `from .db_connector import DBConnector`
+from .db_connector import DBConnector
 
 class SchemaInspector:
-  def __init__(self, DBConnector): # TODO: Parameter name `DBConnector` shadows the class import on line 1 — rename to `db_connector` or `db` to avoid confusion
-    self.db = DBConnector
+  def __init__(self, connector: DBConnector, schema: str = "bdidata"):
+    self.connector = connector
+    self.schema = schema
     self._cache = {}
   
   # Tables
@@ -15,11 +16,11 @@ class SchemaInspector:
     query = """
       SELECT table_name
       FROM information_schema.tables
-      WHERE table_schema = 'bdidata'
+      WHERE table_schema = %s
       ORDER BY table_name
-    """ # TODO: Schema name 'bdidata' is hardcoded in multiple queries — extract to a class-level constant or constructor parameter
-    results = self.db.execute_query_raw(query)
-    tables = [row[0] for row in results]
+    """
+    results = self.connector.execute_query_raw(query, (self.schema,))
+    tables = [row['table_name'] for row in results]
     return tables
   
   # Columns
@@ -54,7 +55,7 @@ class SchemaInspector:
               ON tc.constraint_name = ku.constraint_name
               AND tc.table_schema = ku.table_schema
           WHERE tc.constraint_type = 'PRIMARY KEY'
-              AND tc.table_schema = 'bdidata'
+              AND tc.table_schema = %s
       ) pk ON c.table_name = pk.table_name AND c.column_name = pk.column_name
       -- Join to get foreign key info
       LEFT JOIN (
@@ -71,27 +72,29 @@ class SchemaInspector:
               ON tc.constraint_name = ccu.constraint_name
               AND tc.table_schema = ccu.table_schema
           WHERE tc.constraint_type = 'FOREIGN KEY'
-              AND tc.table_schema = 'bdidata'
+              AND tc.table_schema = %s
       ) fk ON c.table_name = fk.table_name AND c.column_name = fk.column_name
-      WHERE c.table_schema = 'bdidata' AND c.table_name = %s
+      WHERE c.table_schema = %s AND c.table_name = %s
       ORDER BY c.ordinal_position
     """
-    results = self.db.execute_query_raw(query, (table_name,))
+    results = self.connector.execute_query_raw(
+      query, (self.schema, self.schema, self.schema, table_name)
+    )
     columns = []
-    for row in results: # TODO: Accessing columns by numeric index (row[0], row[1], etc.) is fragile — if the query changes, all indices silently break. Consider using a dict cursor or named constants
+    for row in results:
       col = {
-        'name': row[0],
-        'type': row[1],
-        'nullable': row[2] == 'YES',
-        'default': row[3],
-        'udt_name': row[4],  # User-defined type (for enums)
-        'is_primary_key': row[5],
-        'is_foreign_key': row[6],
+        'name': row['column_name'],
+        'type': row['data_type'],
+        'nullable': row['is_nullable'] == 'YES',
+        'default': row['column_default'],
+        'udt_name': row['udt_name'],  # User-defined type (for enums)
+        'is_primary_key': row['is_primary_key'],
+        'is_foreign_key': row['is_foreign_key'],
       }
       # Add foreign key reference if exists
-      if row[6]:
-        col['fk_table'] = row[7]
-        col['fk_column'] = row[8]
+      if row['is_foreign_key']:
+        col['fk_table'] = row['foreign_table_name']
+        col['fk_column'] = row['foreign_column_name']
       columns.append(col)
     return columns
   
@@ -110,8 +113,8 @@ class SchemaInspector:
         WHERE t.typname = %s
         ORDER BY e.enumsortorder
     """
-    results = self.db.execute_query_raw(query, (enum_type_name,))
-    enum_values = [row[0] for row in results]
+    results = self.connector.execute_query_raw(query, (enum_type_name,))
+    enum_values = [row['enumlabel'] for row in results]
     return enum_values
   
   def get_table_enums(self, table_name):
