@@ -47,13 +47,10 @@ poetry run gazer
 
 ## Configuration
 
-On first run, Gazer will prompt for your database username, which is cached in the application directory for subsequent sessions. Database passwords are never stored and must be entered each time.
-
-Configuration files are stored in the application directory rather than your home directory.
+On first run, Gazer will prompt for your database username, which is saved in ~/.gazer/config.json for subsequent sessions. Database passwords are never stored and must be entered each time.
 
 ## Known Issues
 
-- Database connection timeouts can occur if VPN connectivity is unstable
-- First schema load may take a few seconds; subsequent loads use cached data
-- Error handling is incomplete—not all errors trigger the error screen
 - Not tested on MacOS or Windows (Linux/WSL only)
+- Gazer will attempt to fetch the schema and the foreign keys on every login. If it cannot fetch them, it will return an error, but will still allow you to send queries, just without automatic JOINs. That means that **most queries will not work**, unless you explicitly know how to construct them; and in that case, you should use dbeaver instead.
+- Gazer expects a tree-like structure for the database. Automatic joining will crash if there are several ways to join two tables (e.g, if table A can join table D through either B or C, gazer will return an error).
