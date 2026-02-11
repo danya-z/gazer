@@ -1,17 +1,37 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, cast
+from enum import Enum, auto
 
+from textual import events
 from textual.app import ComposeResult
 from textual import work
 from textual.containers import Container, Vertical, ScrollableContainer
 from textual.screen import Screen
-from textual.widgets import Static, Input, Label, Header, Footer
+from textual.widgets import Static, Input, Label, Header, Footer, OptionList
 
 from .ui_error import ErrorOverlay
 
 if TYPE_CHECKING:
   from .ui_main import GazerApp
   from .core_sql_build import QueryBuilder
+
+
+class DropdownStage(Enum):
+  """Which stage of the two-stage dropdown the user is in."""
+  TABLE = auto()   # Choosing a table name
+  COLUMN = auto()  # Choosing a column within a table
+
+
+class SelectDropdown(OptionList):
+  """Non-focusable dropdown overlay that appears below an input.
+  Controlled entirely by the parent — never takes focus itself.
+  Shows table names first, then column names after a dot is typed.
+  """
+  can_focus = False
+
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+    self.stage: DropdownStage = DropdownStage.TABLE
 
 class SQLBuilderScreen(Screen):
   """Screen for building SQL queries with SELECT, FILTER, and SCHEMA panels."""
@@ -26,6 +46,8 @@ class SQLBuilderScreen(Screen):
     self.inspector = schema_inspector
     self._schema_data: list[dict] = []
     self._column_lookup: dict[str, list[str]] = {}  # column_name -> [table_names]
+    self._table_columns: dict[str, list[str]] = {}  # table_name -> [column_names]
+    self._suppress_dropdown = False
 
   def compose(self) -> ComposeResult: # {{{
     """Create the layout structure."""
@@ -36,22 +58,23 @@ class SQLBuilderScreen(Screen):
       # Left side: Query builder (SELECT + FILTER) 
       with Vertical(id="builder-panel"):
 
-        # Upper left: SELECT Screen
+        # Upper left: SELECT section
         with Container(id="select-section"):
           yield Label("SELECT:", classes="section-title")
           yield Input(
-            placeholder="type selection here",
+            placeholder="Type [table_name].column_name here",
             classes="inline-input",
             id="select-input"
           )
+          yield SelectDropdown(id="select-dropdown")
           with ScrollableContainer(id="select-content", classes="content-area"):
             yield Static("Awaiting SELECT Input")
 
-        # Lower left: FILTER Screen
+        # Lower left: FILTER section
         with Container(id="filter-section"):
           yield Label("FILTER:", classes="section-title")
           yield Input(
-            placeholder="type filters here",
+            placeholder="Type filters here",
             classes="inline-input",
             id="filter-input"
           )
@@ -73,18 +96,148 @@ class SQLBuilderScreen(Screen):
     self.load_schema()
 
   # Input Handling {{{
+  def on_input_changed(self, event: Input.Changed) -> None:
+    """Update the dropdown as the user types in the select input."""
+    if event.input.id != "select-input":
+      return
+    if self._suppress_dropdown:
+      self._suppress_dropdown = False
+      return
+    self._update_dropdown(event.value)
+
   def on_input_submitted(self, event: Input.Submitted) -> None:
-    if event.input.id == "select-input":
+    """On Enter: if dropdown is open, pick the highlighted item.
+    Otherwise, submit the input text to the query builder.
+    """
+    if event.input.id != "select-input":
+      return
+
+    dropdown = self.query_one("#select-dropdown", SelectDropdown)
+    if self._is_dropdown_open() and dropdown.highlighted is not None:
+      # Pick the highlighted dropdown item — fill input, don't submit yet
+      event.stop()
+      self._pick_highlighted()
+    else:
+      # No dropdown or nothing highlighted — submit to query builder
+      self._close_dropdown()
       self._handle_select_input(event.value.strip())
       event.input.value = ""
+
+  def on_key(self, event: events.Key) -> None:
+    """Intercept Up/Down/Escape to control the dropdown from the input."""
+    if not self.query_one("#select-input", Input).has_focus:
+      return
+
+    dropdown = self.query_one("#select-dropdown", SelectDropdown)
+    if not self._is_dropdown_open():
+      return
+
+    if event.key == "down":
+      event.stop()
+      event.prevent_default()
+      if dropdown.highlighted is None:
+        dropdown.highlighted = 0
+      elif dropdown.highlighted < dropdown.option_count - 1:
+        dropdown.highlighted += 1
+    elif event.key == "up":
+      event.stop()
+      event.prevent_default()
+      if dropdown.highlighted is not None and dropdown.highlighted > 0:
+        dropdown.highlighted -= 1
+    elif event.key == "escape":
+      event.stop()
+      event.prevent_default()
+      self._close_dropdown()
+
+  def _pick_highlighted(self) -> None:
+    """Pick the currently highlighted dropdown item and fill the input."""
+    dropdown = self.query_one("#select-dropdown", SelectDropdown)
+    select_input = self.query_one("#select-input", Input)
+
+    if dropdown.highlighted is None:
+      return
+    option = dropdown.get_option_at_index(dropdown.highlighted)
+    value = str(option.prompt)
+
+    if dropdown.stage == DropdownStage.TABLE:
+      # Fill input with "table." and switch to column stage
+      select_input.value = f"{value}."
+      # Move cursor to end
+      select_input.cursor_position = len(select_input.value)
+    elif dropdown.stage == DropdownStage.COLUMN:
+      # Fill input with "table.column" (or bare column)
+      # Suppress dropdown so on_input_changed doesn't reopen it
+      self._suppress_dropdown = True
+      table = select_input.value.split('.', 1)[0]
+      if table:
+        select_input.value = f"{table}.{value}"
+      else:
+        select_input.value = value
+      # Move cursor to end
+      select_input.cursor_position = len(select_input.value)
+      self._close_dropdown()
+
+  def _update_dropdown(self, text: str) -> None:
+    """Populate and show/hide the dropdown based on current input text."""
+    dropdown = self.query_one("#select-dropdown", SelectDropdown)
+    section = self.query_one("#select-section")
+
+    if not self._table_columns:
+      section.remove_class("-dropdown-open")
+      return
+
+    if '.' in text and text.split('.', 1)[0]:
+      # Stage 2: column suggestions for the given table
+      table, col_prefix = text.split('.', 1)
+      columns = self._table_columns.get(table, [])
+      matches = [c for c in columns if c.lower().startswith(col_prefix.lower())]
+      dropdown.stage = DropdownStage.COLUMN
+    elif text.startswith('.'):
+      # Bare column: "." prefix means skip table, show all columns
+      col_prefix = text[1:]
+      all_columns = list(self._column_lookup.keys())
+      matches = [c for c in all_columns if c.lower().startswith(col_prefix.lower())]
+      dropdown.stage = DropdownStage.COLUMN
+    else:
+      # Stage 1: table name suggestions (empty text shows all)
+      tables = list(self._table_columns.keys())
+      matches = [t for t in tables if t.lower().startswith(text.lower())]
+      dropdown.stage = DropdownStage.TABLE
+
+    dropdown.clear_options()
+    if matches:
+      for m in matches:
+        dropdown.add_option(m)
+      dropdown.highlighted = 0
+      section.add_class("-dropdown-open")
+    else:
+      section.remove_class("-dropdown-open")
+
+  def _is_dropdown_open(self) -> bool:
+    """Check if the dropdown is currently visible."""
+    return self.query_one("#select-section").has_class("-dropdown-open")
+
+  def _close_dropdown(self) -> None:
+    """Hide the dropdown."""
+    self.query_one("#select-section").remove_class("-dropdown-open")
 
   def _resolve_column(self, text: str) -> tuple[str, str] | None:
     """Parse input into (table, column). Returns None on error.
     Accepts 'table.column' or bare 'column' (looked up from schema).
     """
     if '.' in text:
-      parts = text.split('.', 1)
-      return parts[0], parts[1]
+      table, column = text.split('.', 1)
+      if not table:
+        # Leading dot (e.g. ".column") — treat as bare column
+        text = column
+      else:
+        if table not in self._table_columns:
+          self.show_error("Select", f"Table '{table}' not found in schema.")
+          return None
+        if column not in self._table_columns[table]:
+          self.show_error("Select", f"Column '{column}' not found in table '{table}'.")
+          return None
+        return table, column
 
     # Bare column — look up in schema
     tables = self._column_lookup.get(text, [])
@@ -147,6 +300,16 @@ class SQLBuilderScreen(Screen):
     for item in schema_data:
       for col in item['columns']:
         self._column_lookup.setdefault(col['name'], []).append(item['table'])
+
+    # Build table -> [column_name] map for dropdown
+    self._table_columns: dict[str, list[str]] = {}
+    for item in schema_data:
+      self._table_columns[item['table']] = [
+        col['name'] for col in item['columns']
+      ]
+
+    # Show all tables now that schema is ready (input is already focused)
+    self._update_dropdown("")
 
     container = self.query_one("#schema-content", ScrollableContainer)
     container.remove_children()

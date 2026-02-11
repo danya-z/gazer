@@ -149,3 +149,23 @@ SQLBuilderScreen {
   border: solid $panel;
   margin: 0 1 1 1;
 }
+
+/* ===========================
+   Select Dropdown
+   =========================== */
+
+SelectDropdown {
+  width: 1fr;
+  display: none;
+  height: auto;
+  max-height: 8;
+  overlay: screen;
+  constrain: none inside;
+  background: $surface;
+  border: tall $border-blurred;
+  margin: 0;
+}
+
+#select-section.-dropdown-open SelectDropdown {
+  display: block;
+}
