@@ -1,12 +1,13 @@
 import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 
 CACHE_FILE = Path.home() / ".gazer" / "schema_cache.json"
 
 
-def save_cache(host, database, foreign_keys):
+# Save / Load {{{
+def save_cache(host: str, database: str, foreign_keys: list[dict]) -> None:
   """Save FK relationships to cache file."""
   data = {
     "host": host,
@@ -19,7 +20,7 @@ def save_cache(host, database, foreign_keys):
     json.dump(data, f, indent=2)
 
 
-def load_cache(host, database):
+def load_cache(host: str, database: str) -> list[dict] | None:
   """Load cached FK relationships if they match the given host+database.
   Returns:
     list[dict] or None: FK list if cache is valid, None otherwise.
@@ -34,3 +35,4 @@ def load_cache(host, database):
   except (json.JSONDecodeError, ValueError, KeyError):
     pass
   return None
+# }}}

@@ -1,11 +1,13 @@
 import atexit
 from typing import cast
+
 from textual import work
-from textual.app import App
+from textual.app import App, ComposeResult
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Static, Input, Label
 from textual.containers import Horizontal
 from textual.binding import Binding
+
 from .core_connect import DBConnector
 from .core_schema import SchemaInspector
 from .core_sql_build import QueryBuilder
@@ -14,7 +16,8 @@ from .ui_error import ErrorOverlay
 from .mem_config import Config
 from .mem_schema import save_cache
 
-#Gazer App {{{
+
+# GazerApp {{{
 class GazerApp(App):
   """Main Gazer TUI application."""
   TITLE = "Gazer"
@@ -23,21 +26,20 @@ class GazerApp(App):
   BINDINGS = [
     Binding("escape", "quit", "Quit"),
   ]
-  
-  def __init__(self):
+
+  def __init__(self) -> None:
     super().__init__()
     self.config = Config()
     self.db: DBConnector | None = None
     self.schema_inspector: SchemaInspector | None = None
     self.query_builder: QueryBuilder | None = None
 
-  def on_mount(self):
+  def on_mount(self) -> None:
     """Show connection screen on startup."""
     self.push_screen(ConnectionScreen())
-  
 
-  def cleanup(self):
-    """Synchronous cleanup for emergency shutdown"""
+  def cleanup(self) -> None:
+    """Synchronous cleanup for emergency shutdown."""
     if self.db is not None:
       try:
         self.db.close()
@@ -45,20 +47,23 @@ class GazerApp(App):
       except Exception as e:
         self.log.error(f"Error closing database: {e}")
 
-  async def action_quit(self):
-    """Quit application"""
+  async def action_quit(self) -> None:
+    """Quit application."""
     self.cleanup()
     self.exit()
-#}}}
+# }}}
 
-# Connection Screen 
+
+# ConnectionScreen {{{
 class ConnectionScreen(Screen):
   BINDINGS = [
     Binding("escape", "app.quit", "Quit"),
   ]
 
-  # Compose and Call {{{
-  def compose(self):
+  # Compose {{{
+  def compose(self) -> ComposeResult:
+    app = cast(GazerApp, self.app)
+
     yield Header()
     yield Static("Database Connection", id="title")
     yield Label(
@@ -68,14 +73,14 @@ class ConnectionScreen(Screen):
       id="welcome"
     )
 
-    yield Label(f"Host:     {self.app.config.get_host()}")
-    yield Label(f"Port:     {self.app.config.get_port()}")
-    yield Label(f"Database: {self.app.config.get_database()}")
+    yield Label(f"Host:     {app.config.get_host()}")
+    yield Label(f"Port:     {app.config.get_port()}")
+    yield Label(f"Database: {app.config.get_database()}")
 
     yield Horizontal(
       Label("Username: "),
       Input(
-        value=self.app.config.get_username(),
+        value=app.config.get_username(),
         placeholder="Enter username",
         classes="simple_input",
         id="username"
@@ -93,46 +98,47 @@ class ConnectionScreen(Screen):
 
     yield Static("", id="error_display")
     yield Footer()
-  
-  def on_mount(self):
-    if self.app.config.get_username():
+
+  def on_mount(self) -> None:
+    app = cast(GazerApp, self.app)
+    if app.config.get_username():
       self.query_one("#password", Input).focus()
 
-  def on_input_submitted(self, event: Input.Submitted):
+  def on_input_submitted(self, event: Input.Submitted) -> None:
     if event.input.id == "username":
-      password_input = self.query_one("#password", Input)
-      password_input.focus()
+      self.query_one("#password", Input).focus()
     elif event.input.id == "password":
       self.attempt_connection()
 
-  def attempt_connection(self):
+  def attempt_connection(self) -> None:
+    app = cast(GazerApp, self.app)
     error_display = self.query_one("#error_display", Static)
 
-    host = self.app.config.get_host()
-    port = self.app.config.get_port()
-    database = self.app.config.get_database()
+    host = app.config.get_host()
+    port = app.config.get_port()
+    database = app.config.get_database()
     username = self.query_one("#username", Input).value
     password = self.query_one("#password", Input).value
-    
+
     if not username:
       error_display.update("Username is required")
       return
     if not password:
       error_display.update("Password is required")
       return
-    
+
     self.start_connecting_animation()
     self.connect_worker(host, port, database, username, password)
-   # }}}
+  # }}}
 
-  # Connection animation {{{
-  def start_connecting_animation(self):
+  # Connection Animation {{{
+  def start_connecting_animation(self) -> None:
     """Start animated 'Connecting...' message."""
-    self._connecting = True
-    self._animation_dots = 0
+    self._connecting: bool = True
+    self._animation_dots: int = 0
     self._animation_timer = self.set_interval(0.5, self.update_connecting_animation)
-  
-  def update_connecting_animation(self):
+
+  def update_connecting_animation(self) -> None:
     """Update the connecting animation."""
     if not self._connecting:
       return
@@ -144,19 +150,19 @@ class ConnectionScreen(Screen):
       "Connecting..·",
     ]
     error_display.update(animation_states[self._animation_dots])
-    self._animation_dots = (self._animation_dots + 1) % 3 
+    self._animation_dots = (self._animation_dots + 1) % 3
 
-  def stop_connecting_animation(self):
+  def stop_connecting_animation(self) -> None:
     """Stop the connecting animation and clear message."""
     self._connecting = False
     self._animation_timer.stop()
-    error_display = self.query_one("#error_display", Static)
-    error_display.update("")
+    self.query_one("#error_display", Static).update("")
   # }}}
 
   # DB Connection {{{
   @work(exclusive=True, thread=True)
-  def connect_worker(self, host: str, port: str, database: str, username: str, password: str):
+  def connect_worker(self, host: str, port: str, database: str,
+                     username: str, password: str) -> None:
     """Worker to handle the blocking database connection."""
     db = None
     try:
@@ -173,31 +179,30 @@ class ConnectionScreen(Screen):
 
     # Connection succeeded — fetch FK relationships (non-fatal if this fails)
     inspector = SchemaInspector(db)
-    fk_list = []
+    fk_list: list[dict] = []
     try:
       fk_list = inspector.fetch_all_foreign_keys()
       save_cache(host, database, fk_list)
     except Exception as e:
       error_msg = f"{type(e).__name__}: {e}"
-      self.app.call_from_thread(
-        self.show_schema_warning, error_msg
-      )
+      self.app.call_from_thread(self.show_schema_warning, error_msg)
 
     self.app.call_from_thread(self.connection_success, db, username, inspector, fk_list)
 
-  def connection_success(self, db: DBConnector, username: str, inspector: SchemaInspector, fk_list: list):
-    """Called on successful connection from main thread"""
+  def connection_success(self, db: DBConnector, username: str,
+                         inspector: SchemaInspector, fk_list: list[dict]) -> None:
+    """Called on successful connection from main thread."""
     app = cast(GazerApp, self.app)
 
     self.stop_connecting_animation()
-    self.app.config.set_username(username)
+    app.config.set_username(username)
     app.db = db
     app.schema_inspector = inspector
     app.query_builder = QueryBuilder()
     app.query_builder.set_foreign_keys(fk_list)
     app.push_screen(SQLBuilderScreen(app.schema_inspector))
 
-  def show_schema_warning(self, error_msg):
+  def show_schema_warning(self, error_msg: str) -> None:
     """Show non-fatal schema fetch error. Connection still proceeds."""
     self.app.push_screen(ErrorOverlay(
       "Schema",
@@ -205,7 +210,7 @@ class ConnectionScreen(Screen):
       error_msg,
     ))
 
-  def show_error(self, exception):
+  def show_error(self, exception: Exception) -> None:
     """Display error message screen."""
     self.stop_connecting_animation()
     error_category = "Connection"
@@ -224,12 +229,15 @@ class ConnectionScreen(Screen):
       user_msg = "Gazer does not recognize the error."
 
     self.app.push_screen(ErrorOverlay(error_category, user_msg, raw_error))
-  #}}}
+  # }}}
+# }}}
 
-def main():
+
+def main() -> None:
   app = GazerApp()
   atexit.register(app.cleanup)
   app.run()
+
 
 if __name__ == '__main__':
   main()
