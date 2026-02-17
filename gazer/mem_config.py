@@ -9,6 +9,7 @@ class Config:
     "port": "5433",
     "database": "bdidata",
     "username": "",
+    "export_path": "",
   }
 
   def __init__(self):
@@ -48,6 +49,13 @@ class Config:
 
   def set_username(self, username):
     self._data["username"] = username
+    self._save()
+
+  def get_export_path(self):
+    return self._data.get("export_path", "")
+
+  def set_export_path(self, path):
+    self._data["export_path"] = path
     self._save()
 
   def update_connection_settings(self, host, port, database):
