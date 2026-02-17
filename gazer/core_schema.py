@@ -1,18 +1,25 @@
+from typing import Any
+
 from .core_connect import DBConnector
 
-class SchemaInspector:
-  def __init__(self, connector: DBConnector, schema: str = "bdidata"):
+
+class SchemaInspector: # {{{
+  """Introspects PostgreSQL schema: tables, columns, enums, foreign keys.
+  Uses in-memory caching to avoid repeated DB queries.
+  """
+
+  def __init__(self, connector: DBConnector, schema: str = "bdidata") -> None:
     self.connector = connector
     self.schema = schema
-    self._cache = {}
-  
-  # Tables
-  def get_tables(self):
+    self._cache: dict[str, Any] = {}
+
+  # Tables {{{
+  def get_tables(self) -> list[str]:
     if 'tables' not in self._cache:
       self._cache['tables'] = self.fetch_tables()
     return self._cache['tables']
-  
-  def fetch_tables(self):
+
+  def fetch_tables(self) -> list[str]:
     query = """
       SELECT table_name
       FROM information_schema.tables
@@ -20,18 +27,21 @@ class SchemaInspector:
       ORDER BY table_name
     """
     results = self.connector.execute_query_raw(query, (self.schema,))
-    tables = [row['table_name'] for row in results]
-    return tables
-  
-  # Columns
-  def get_columns(self, table_name):
+    return [row['table_name'] for row in results]
+  # }}}
+
+  # Columns {{{
+  def get_columns(self, table_name: str) -> list[dict]:
     cache_key = f'columns_{table_name}'
     if cache_key not in self._cache:
       self._cache[cache_key] = self.fetch_columns(table_name)
     return self._cache[cache_key]
-  
-  def fetch_columns(self, table_name):
-    # TODO: No error handling — if the table doesn't exist or the DB connection drops, the raw psycopg2 exception will propagate unhandled
+
+  def fetch_columns(self, table_name: str) -> list[dict]:
+    """Fetch column metadata for a table.
+    Raises RuntimeError with a clean message if the query fails.
+    """
+    schema = self.schema
     query = """
       SELECT
           c.column_name,
@@ -78,12 +88,18 @@ class SchemaInspector:
       WHERE c.table_schema = %s AND c.table_name = %s
       ORDER BY c.ordinal_position
     """
-    results = self.connector.execute_query_raw(
-      query, (self.schema, self.schema, self.schema, table_name)
-    )
-    columns = []
+    try:
+      results = self.connector.execute_query_raw(
+        query, (schema, schema, schema, table_name)
+      )
+    except Exception as e:
+      raise RuntimeError(
+        f"Failed to fetch columns for '{table_name}': {e}"
+      ) from e
+
+    columns: list[dict] = []
     for row in results:
-      col = {
+      col: dict[str, Any] = {
         'name': row['column_name'],
         'type': row['data_type'],
         'nullable': row['is_nullable'] == 'YES',
@@ -98,46 +114,43 @@ class SchemaInspector:
         col['fk_column'] = row['foreign_column_name']
       columns.append(col)
     return columns
-  
-  # Enums
-  def get_enum_values(self, enum_type_name):
+  # }}}
+
+  # Enums {{{
+  def get_enum_values(self, enum_type_name: str) -> list[str]:
     cache_key = f'enum_{enum_type_name}'
     if cache_key not in self._cache:
       self._cache[cache_key] = self.fetch_enum_values(enum_type_name)
     return self._cache[cache_key]
-  
-  def fetch_enum_values(self, enum_type_name):
+
+  def fetch_enum_values(self, enum_type_name: str) -> list[str]:
     query = """
         SELECT e.enumlabel
-        FROM pg_type t 
-        JOIN pg_enum e ON t.oid = e.enumtypid  
+        FROM pg_type t
+        JOIN pg_enum e ON t.oid = e.enumtypid
         WHERE t.typname = %s
         ORDER BY e.enumsortorder
     """
     results = self.connector.execute_query_raw(query, (enum_type_name,))
-    enum_values = [row['enumlabel'] for row in results]
-    return enum_values
-  
-  def get_table_enums(self, table_name):
-    """Get all enum columns for a table with their possible values.
-    Returns:
-        dict: {column_name: [enum_values]}
-    """
+    return [row['enumlabel'] for row in results]
+
+  def get_table_enums(self, table_name: str) -> dict[str, list[str]]:
+    """Get all enum columns for a table with their possible values."""
     columns = self.get_columns(table_name)
-    enums = {}
+    enums: dict[str, list[str]] = {}
     for col in columns:
       if col['type'] == 'USER-DEFINED':
         enum_type = col['udt_name']
         enum_values = self.get_enum_values(enum_type)
-        if enum_values:  # Only include if we found values
+        if enum_values:
           enums[col['name']] = enum_values
     return enums
-  
-  # Foreign Keys
-  def fetch_all_foreign_keys(self):
+  # }}}
+
+  # Foreign Keys {{{
+  def fetch_all_foreign_keys(self) -> list[dict[str, str]]:
     """Fetch all FK relationships in the schema.
-    Returns:
-      list[dict]: each with from_table, from_column, to_table, to_column
+    Uses pg_catalog (not information_schema) for privilege safety.
     """
     query = """
       SELECT
@@ -166,9 +179,10 @@ class SchemaInspector:
       }
       for row in results
     ]
+  # }}}
 
-  # Utils
-  def refresh_cache(self, scope=None):
+  # Utils {{{
+  def refresh_cache(self, scope: str | None = None) -> None:
     """Refresh cached schema information.
     Args:
         scope: 'tables', 'columns', 'enums', or None (refresh all)
@@ -181,3 +195,5 @@ class SchemaInspector:
       self._cache = {k: v for k, v in self._cache.items() if not k.startswith('columns_')}
     elif scope == 'enums':
       self._cache = {k: v for k, v in self._cache.items() if not k.startswith('enum_')}
+  # }}}
+# }}}
