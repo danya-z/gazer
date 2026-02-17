@@ -179,3 +179,65 @@ Dropdown {
   color: $text-muted;
   height: auto;
 }
+
+/* ===========================
+   Results Screen
+   =========================== */
+
+ResultsScreen {
+  align: center middle;
+}
+
+#results-box {
+  width: 90%;
+  height: 80%;
+  background: $surface;
+  border: thick $accent;
+  padding: 1 2;
+}
+
+#results-query {
+  color: $text-muted;
+  padding: 0 0 1 0;
+}
+
+#results-count {
+  text-style: bold;
+  padding: 0 0 1 0;
+}
+
+#results-table {
+  height: 1fr;
+}
+
+/* ===========================
+   Export Dialog
+   =========================== */
+
+ExportDialog {
+  align: center middle;
+}
+
+#export-box {
+  width: 60;
+  height: auto;
+  background: $surface;
+  border: thick $accent;
+  padding: 1 2;
+}
+
+#export-title {
+  text-style: bold;
+  color: $accent;
+  text-align: center;
+  padding: 0 0 1 0;
+}
+
+.export-info {
+  text-align: center;
+  padding: 0 0 1 0;
+}
+
+#export-path {
+  margin: 0 1;
+}
