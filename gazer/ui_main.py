@@ -26,6 +26,7 @@ class GazerApp(App):
   
   def __init__(self):
     super().__init__()
+    self.config = Config()
     self.db: DBConnector | None = None
     self.schema_inspector: SchemaInspector | None = None
     self.query_builder: QueryBuilder | None = None
@@ -56,10 +57,6 @@ class ConnectionScreen(Screen):
     Binding("escape", "app.quit", "Quit"),
   ]
 
-  def __init__(self):
-    super().__init__()
-    self.config = Config()
-
   # Compose and Call {{{
   def compose(self):
     yield Header()
@@ -71,14 +68,14 @@ class ConnectionScreen(Screen):
       id="welcome"
     )
 
-    yield Label(f"Host:     {self.config.get_host()}")
-    yield Label(f"Port:     {self.config.get_port()}")
-    yield Label(f"Database: {self.config.get_database()}")
+    yield Label(f"Host:     {self.app.config.get_host()}")
+    yield Label(f"Port:     {self.app.config.get_port()}")
+    yield Label(f"Database: {self.app.config.get_database()}")
 
     yield Horizontal(
       Label("Username: "),
       Input(
-        value=self.config.get_username(),
+        value=self.app.config.get_username(),
         placeholder="Enter username",
         classes="simple_input",
         id="username"
@@ -98,7 +95,7 @@ class ConnectionScreen(Screen):
     yield Footer()
   
   def on_mount(self):
-    if self.config.get_username():
+    if self.app.config.get_username():
       self.query_one("#password", Input).focus()
 
   def on_input_submitted(self, event: Input.Submitted):
@@ -111,9 +108,9 @@ class ConnectionScreen(Screen):
   def attempt_connection(self):
     error_display = self.query_one("#error_display", Static)
 
-    host = self.config.get_host()
-    port = self.config.get_port()
-    database = self.config.get_database()
+    host = self.app.config.get_host()
+    port = self.app.config.get_port()
+    database = self.app.config.get_database()
     username = self.query_one("#username", Input).value
     password = self.query_one("#password", Input).value
     
@@ -193,7 +190,7 @@ class ConnectionScreen(Screen):
     app = cast(GazerApp, self.app)
 
     self.stop_connecting_animation()
-    self.config.set_username(username)
+    self.app.config.set_username(username)
     app.db = db
     app.schema_inspector = inspector
     app.query_builder = QueryBuilder()
