@@ -124,7 +124,7 @@ class SQLBuilderScreen(Screen):
       event.input.value = ""
 
   def on_key(self, event: events.Key) -> None:
-    """Intercept Up/Down/Escape to control the dropdown from the input."""
+    """Intercept Up/Down/Escape/Tab to control the dropdown from the input."""
     if not self.query_one("#select-input", Input).has_focus:
       return
 
@@ -132,7 +132,7 @@ class SQLBuilderScreen(Screen):
     if not self._is_dropdown_open():
       return
 
-    if event.key == "down":
+    if event.key == "down" or event.key == "tab":
       event.stop()
       event.prevent_default()
       if dropdown.highlighted is None:
