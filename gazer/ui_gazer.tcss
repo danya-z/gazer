@@ -241,3 +241,32 @@ ExportDialog {
 #export-path {
   margin: 0 1;
 }
+
+/* ===========================
+   Preset Dialogs
+   =========================== */
+
+PresetPicker, PresetSaver {
+  align: center middle;
+}
+
+#preset-picker-box, #preset-saver-box {
+  width: 50;
+  height: auto;
+  max-height: 60%;
+  background: $surface;
+  border: thick $accent;
+  padding: 1 2;
+}
+
+#preset-picker-title, #preset-saver-title {
+  text-style: bold;
+  color: $accent;
+  text-align: center;
+  padding: 0 0 1 0;
+}
+
+#preset-columns {
+  color: $text-muted;
+  padding: 0 0 1 0;
+}

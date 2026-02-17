@@ -11,7 +11,7 @@ from textual.widgets import Static, Input, Label, Header, Footer
 
 from .ui_error import ErrorOverlay
 from .ui_dropdown import Dropdown
-from .ui_output import ResultsScreen, ExportDialog
+from .ui_output import ResultsScreen, ExportDialog, PresetPicker, PresetSaver
 
 if TYPE_CHECKING:
   from .ui_main import GazerApp
@@ -24,7 +24,9 @@ class SQLBuilderScreen(Screen): # {{{
   BINDINGS = [
     ("escape", "app.pop_screen", "Back"),
     ("ctrl+r", "run_query", "Run Query"),
-    ("ctrl+s", "export_query", "Export CSV"),
+    ("ctrl+x", "export_query", "Export CSV"),
+    ("ctrl+l", "load_preset", "Load Preset"),
+    ("ctrl+s", "save_preset", "Save Preset"),
   ]
 
   def __init__(self, schema_inspector) -> None:
@@ -375,6 +377,48 @@ class SQLBuilderScreen(Screen): # {{{
         lines.extend(self._format_filter_tree(child, indent + 1))
 
     return lines
+  # }}}
+
+  # Presets {{{
+  def action_load_preset(self) -> None:
+    """Open the preset picker modal."""
+    self.app.push_screen(PresetPicker(), callback=self._on_preset_picked)
+
+  def _on_preset_picked(self, columns: list[str] | None) -> None:
+    """Callback when a preset is picked (or dismissed)."""
+    if not columns:
+      return
+
+    app = cast("GazerApp", self.app)
+    query_builder = cast("QueryBuilder", app.query_builder)
+
+    valid: list[tuple[str, str]] = []
+    for col_str in columns:
+      if '.' not in col_str:
+        continue
+      table, column = col_str.split('.', 1)
+      if table in self._table_columns and column in self._table_columns[table]:
+        valid.append((table, column))
+
+    if not valid:
+      self.show_error("Preset", "No valid columns in this preset for the current schema.")
+      return
+
+    # Set base table from first valid column if not already set
+    if query_builder._table is None:
+      query_builder.set_table(valid[0][0])
+
+    for table, column in valid:
+      query_builder.add_column(column, table)
+
+    self.refresh_display()
+
+  def action_save_preset(self) -> None:
+    """Open the preset saver modal with current columns."""
+    app = cast("GazerApp", self.app)
+    query_builder = cast("QueryBuilder", app.query_builder)
+    columns = query_builder.get_state()['columns']
+    self.app.push_screen(PresetSaver(columns))
   # }}}
 
   # Query Execution {{{

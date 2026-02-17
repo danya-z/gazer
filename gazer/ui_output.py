@@ -7,9 +7,11 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Static, Input, DataTable
+from textual.widgets import Static, Input, DataTable, OptionList
+from textual.widgets.option_list import Option
 
 from .core_export import export_csv
+from .mem_presets import load_presets, save_preset
 
 if TYPE_CHECKING:
   from .ui_main import GazerApp
@@ -121,4 +123,78 @@ class ExportDialog(ModalScreen): # {{{
 
   def action_dismiss(self) -> None:
     self.dismiss()
+# }}}
+
+
+class PresetPicker(ModalScreen): # {{{
+  """Modal screen for loading a column preset."""
+
+  BINDINGS = [
+    Binding("escape", "dismiss", "Cancel", show=False),
+  ]
+
+  def __init__(self) -> None:
+    super().__init__()
+    self._presets = load_presets()
+
+  def compose(self) -> ComposeResult:
+    with Vertical(id="preset-picker-box"):
+      yield Static("Load Preset", id="preset-picker-title")
+      yield OptionList(id="preset-list")
+      yield Static("'enter' load | 'escape' cancel", classes="hint")
+
+  def on_mount(self) -> None:
+    option_list = self.query_one("#preset-list", OptionList)
+    for name in self._presets:
+      cols = ", ".join(self._presets[name])
+      option_list.add_option(Option(f"{name}  ({cols})", id=name))
+    if not self._presets:
+      self.query_one(".hint", Static).update("No presets saved yet")
+
+  def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+    name = str(event.option_id)
+    columns = self._presets.get(name, [])
+    self.dismiss(columns)
+
+  def action_dismiss(self) -> None:
+    self.dismiss(None)
+# }}}
+
+
+class PresetSaver(ModalScreen): # {{{
+  """Modal screen for saving the current columns as a preset."""
+
+  BINDINGS = [
+    Binding("escape", "dismiss", "Cancel", show=False),
+  ]
+
+  def __init__(self, columns: list[str]) -> None:
+    super().__init__()
+    self._columns = columns
+
+  def compose(self) -> ComposeResult:
+    cols_text = ", ".join(self._columns) if self._columns else "(no columns)"
+    with Vertical(id="preset-saver-box"):
+      yield Static("Save Preset", id="preset-saver-title")
+      yield Static(f"Columns: {cols_text}", id="preset-columns")
+      yield Input(placeholder="Preset name", id="preset-name")
+      yield Static("'enter' save | 'escape' cancel", classes="hint")
+
+  def on_mount(self) -> None:
+    self.query_one("#preset-name", Input).focus()
+
+  def on_input_submitted(self, event: Input.Submitted) -> None:
+    name = event.value.strip()
+    if not name:
+      return
+    existing = load_presets()
+    save_preset(name, self._columns)
+    hint = self.query_one(".hint", Static)
+    if name in existing:
+      hint.update(f"Overwrote preset '{name}'")
+    else:
+      hint.update(f"Saved preset '{name}'")
+
+  def action_dismiss(self) -> None:
+    self.dismiss(None)
 # }}}
