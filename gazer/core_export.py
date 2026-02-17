@@ -1,10 +1,11 @@
 import csv
 
 
+# CSV Export {{{
 def export_csv(rows: list[dict], filepath: str) -> int:
   """Export query results to a CSV file.
   Args:
-    rows: list of DictCursor row dicts
+    rows: list of plain dicts (already converted from DictCursor rows)
     filepath: path to write the CSV to
   Returns:
     number of rows written
@@ -18,6 +19,7 @@ def export_csv(rows: list[dict], filepath: str) -> int:
     writer = csv.DictWriter(f, fieldnames=fieldnames)
     writer.writeheader()
     for row in rows:
-      writer.writerow(dict(row))
+      writer.writerow(row)
 
   return len(rows)
+# }}}
