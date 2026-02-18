@@ -22,14 +22,13 @@ class ResultsScreen(ModalScreen): # {{{
 
   BINDINGS = [
     Binding("escape", "dismiss", "Dismiss", show=False),
-    Binding("ctrl+s", "export", "Export CSV"),
+    Binding("ctrl+x", "export", "Export CSV"),
   ]
 
-  MAX_DISPLAY_ROWS = 500
+  MAX_DISPLAY_ROWS = 100
 
   def __init__(self, sql: str, params: list, rows: list[dict]) -> None:
     super().__init__()
-    self._sql = sql
     self._params = params
     self._rows = rows
 
@@ -40,12 +39,7 @@ class ResultsScreen(ModalScreen): # {{{
     else:
       count_text = f"{total} rows"
 
-    query_text = self._sql
-    if self._params:
-      query_text += f"\nParams: {self._params}"
-
     with Vertical(id="results-box"):
-      yield Static(query_text, id="results-query")
       yield Static(count_text, id="results-count")
       yield DataTable(id="results-table")
       yield Static("'ctrl+s' export | 'escape' dismiss", classes="hint")
