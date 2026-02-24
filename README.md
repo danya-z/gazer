@@ -10,44 +10,45 @@ Developed for the BDI Laboratory at Purdue University.
 - ✅ Database connection to Purdue PostgreSQL server with authentication
 - ✅ Schema fetching and caching
 - ✅ Error handling with detailed diagnostics and clipboard support
-- 🚧 Query builder interface (in progress)
-- 🚧 CSV/MATLAB import and export (planned)
+- ✅ Query builder interface
+- ✅ CSV export
+- 🚧 CSV/MATLAB import (planned)
+- 🚧 MATLAB export (planned)
 
 ## Installation
 
 ### Requirements
 
-1. **Poetry** - Dependency management tool
-```bash
-# Install Poetry (if not already installed)
-curl -sSL https://install.python-poetry.org | python3 -
+1. **Python 3.12+**
 
-# Or on Windows (PowerShell)
-(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | python -
+2. **pipx**
+```bash
+pip install pipx
+pipx ensurepath
 ```
 
-  Verify installation: `poetry --version`
+3. **VPN Access** - Gazer can only connect to the database if you are under Purdue's "Zone-network-clients" VPN.
 
-2. **VPN Access** - Gazer can only connect to the database if you are under the Purdue's "Zone-network-clients" VPN.
-
-3. **Database Credentials** - Your credentials must be recognized by the BDI lab's PostgreSQL server (TODO, add more specific instructions for new users).
+4. **Database Credentials** - Your credentials must be recognized by the BDI lab's PostgreSQL server.
 
 ### Install Gazer
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd gazer
+pipx install git+https://github.com/danya-z/gazer.git
+```
 
-# Install dependencies using Poetry
-poetry install
+### Update Gazer
+```bash
+pipx install git+https://github.com/danya-z/gazer.git --force
+```
 
-# Run the application
-poetry run gazer
+### Run
+```bash
+gazer
 ```
 
 ## Configuration
 
-On first run, Gazer will prompt for your database username, which is saved in ~/.gazer/config.json for subsequent sessions. Database passwords are never stored and must be entered each time.
+On first run, Gazer will prompt for your database username, which is saved in `~/.gazer/config.json` for subsequent sessions. Database passwords are never stored and must be entered each time.
 
 ## Known Issues
 
