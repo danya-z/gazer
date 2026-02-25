@@ -106,17 +106,17 @@ SQLBuilderScreen {
   width: 1fr;
 }
 
-#builder-panel {
+#select-panel {
   width: 1fr;
   border: solid green;
 }
 
-#schema-panel {
+#right-panel {
   width: 1fr;
-  border: solid blue;
+  border: solid green;
 }
 
-#select-section {
+#order-section {
   height: 1fr;
   border: solid yellow;
 }
@@ -144,10 +144,9 @@ SQLBuilderScreen {
   margin: 0 1 1 1;
 }
 
-#schema-content {
-  height: 1fr;
-  border: solid $panel;
-  margin: 0 1 1 1;
+.distinct-badge {
+  color: $warning;
+  padding: 0 1;
 }
 
 /* ===========================
@@ -166,11 +165,15 @@ Dropdown {
   margin: 0;
 }
 
-#select-section.-dropdown-open Dropdown {
+#select-panel.-dropdown-open Dropdown {
   display: block;
 }
 
 #filter-section.-dropdown-open Dropdown {
+  display: block;
+}
+
+#order-section.-dropdown-open Dropdown {
   display: block;
 }
 
@@ -269,4 +272,39 @@ PresetPicker, PresetSaver {
 #preset-columns {
   color: $text-muted;
   padding: 0 0 1 0;
+}
+
+/* ===========================
+   Schema Modal
+   =========================== */
+
+SchemaScreen {
+  align: center middle;
+}
+
+#schema-box {
+  width: 80%;
+  height: 80%;
+  background: $surface;
+  border: thick $accent;
+  padding: 1 2;
+}
+
+#schema-title {
+  text-style: bold;
+  color: $accent;
+  text-align: center;
+  padding: 0 0 1 0;
+}
+
+#schema-content {
+  height: 1fr;
+  border: solid $panel;
+  margin: 0 1 1 1;
+}
+
+.table-name {
+  text-style: bold;
+  color: $accent;
+  padding: 0 1;
 }
