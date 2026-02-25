@@ -23,8 +23,10 @@ class GazerApp(App):
   TITLE = "Gazer"
   SUB_TITLE = "Database Query Builder"
   CSS_PATH = "ui_gazer.tcss"
+  ENABLE_COMMAND_PALETTE = False
   BINDINGS = [
     Binding("escape", "quit", "Quit"),
+    Binding("ctrl+c", "app.quit", "Quit", show=False, priority=True),
   ]
 
   def __init__(self) -> None:
@@ -56,10 +58,6 @@ class GazerApp(App):
 
 # ConnectionScreen {{{
 class ConnectionScreen(Screen):
-  BINDINGS = [
-    Binding("escape", "app.quit", "Quit"),
-  ]
-
   # Compose {{{
   def compose(self) -> ComposeResult:
     app = cast(GazerApp, self.app)

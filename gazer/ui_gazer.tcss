@@ -104,6 +104,7 @@ SQLBuilderScreen {
 #main-container {
   layout: horizontal;
   width: 1fr;
+  height: 1fr;
 }
 
 #select-panel {
