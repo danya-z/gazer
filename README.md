@@ -19,26 +19,26 @@ Developed for the BDI Laboratory at Purdue University.
 
 ### Requirements
 
-1. **Python 3.12+**
+1. **Python 3.12+**.
 More information about Python can be found on the official website
 https://python.org
 
-2. **pipx**
-Check if you have it installed with `pipx --version`. 
-If it is not installed, you can do so via pip or anaconda:
+2. **pipx**.
+Ensure `pipx` is installed with `pipx --version`. 
+If it is not installed, you can install it via pip:
 ```bash
 pip install pipx
 pipx ensurepath
 ```
-
+Alternatively, you can use anaconda:
 ```bash
 conda install -c conda-forge pipx
 pipx ensurepath
 ```
 
-3. **VPN Access** - Gazer can connect to the bdi database only if you are under Purdue's `Zone-network-clients` VPN. If you have never connected to it before, open Cisco Secure Client (if you have never used the Client, more information and the download link can be found [here](https://it.purdue.edu/services/vpn.php)). Instead of using the Client's dropdown, manually enter `zonevpn.itap.purdue.edu/clients`, select Connect, and authenticate using your Purdue career account credentials (you might have to use Duo for this). On future connections the dropdown for the Client should populate automatically - then you can select `Zone-network-clients`.
+3. **VPN Access**. Gazer requires you to be connected to Purdue's `Zone-network-clients` VPN. If you have never done so before, open Cisco Secure Client (if you have never used Client, find the relevant information and the download link can be found [here](https://it.purdue.edu/services/vpn.php)). Instead of using the Client's dropdown select, manually enter `zonevpn.itap.purdue.edu/clients`. Select Connect, and authenticate using your Purdue career account credentials (you might have to use Duo for this). On future connections the dropdown for the Client should populate automatically -- then you can select `Zone-network-clients`.
 
-4. **Database Credentials** - Your credentials must be recognized by the BDI database (the lab's PostgreSQL server).
+4. **Database Credentials**. Your credentials must be recognized by the BDI database (the lab's PostgreSQL server).
 
 ### Install Gazer
 ```bash
@@ -57,7 +57,7 @@ gazer
 
 ## Configuration
 
-On first run, Gazer will prompt for your database username, which is saved in `~/.gazer/config.json` for subsequent sessions. Database passwords are never stored and must be entered each time. If, for whatever reason, you want to change the database server you are connecting to, you can do so by modifying `~/.gazer/config.json`. I strongly advise against that unless you know what you are doing.
+On first run, Gazer will prompt for your database username, which is saved in `~/.gazer/config.json` for subsequent sessions. Database passwords are never stored and must be entered each time. If, for whatever reason, you want to change the database server you are connecting to, you can do so by modifying `~/.gazer/config.json`. I strongly advise against that unless you are confident you know what you are doing.
 
 ## Known Issues
 
