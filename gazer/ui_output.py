@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, cast
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
+from textual.containers import Vertical, ScrollableContainer
 from textual.screen import ModalScreen
-from textual.widgets import Static, Input, DataTable, OptionList
+from textual.widgets import Static, Input, DataTable, Label, OptionList
 from textual.widgets.option_list import Option
 
 from .core_export import export_csv
@@ -29,6 +29,7 @@ class ResultsScreen(ModalScreen): # {{{
 
   def __init__(self, sql: str, params: list, rows: list[dict]) -> None:
     super().__init__()
+    self._sql = sql
     self._params = params
     self._rows = rows
 
@@ -42,7 +43,7 @@ class ResultsScreen(ModalScreen): # {{{
     with Vertical(id="results-box"):
       yield Static(count_text, id="results-count")
       yield DataTable(id="results-table")
-      yield Static("'ctrl+s' export | 'escape' dismiss", classes="hint")
+      yield Static("'ctrl+x' export | 'escape' dismiss", classes="hint")
 
   def on_mount(self) -> None:
     table = self.query_one("#results-table", DataTable)
@@ -191,4 +192,43 @@ class PresetSaver(ModalScreen): # {{{
 
   def action_dismiss(self) -> None:
     self.dismiss(None)
+# }}}
+
+
+class SchemaScreen(ModalScreen): # {{{
+  """Modal screen showing the database schema tree."""
+
+  BINDINGS = [
+    Binding("escape", "dismiss", "Dismiss", show=False),
+  ]
+
+  def __init__(self, schema_data: list[dict]) -> None:
+    super().__init__()
+    self._schema_data = schema_data
+
+  def compose(self) -> ComposeResult:
+    with Vertical(id="schema-box"):
+      yield Label("SCHEMA", id="schema-title")
+      with ScrollableContainer(id="schema-content"):
+        pass
+      yield Static("'escape' dismiss", classes="hint")
+
+  def on_mount(self) -> None:
+    container = self.query_one("#schema-content", ScrollableContainer)
+    for item in self._schema_data:
+      table_name = item['table']
+      columns = item['columns']
+      container.mount(Static(table_name, classes="table-name"))
+      for i, col in enumerate(columns):
+        connector = "└─" if i == len(columns) - 1 else "├─"
+        col_str = f"  {connector} {col['name']}; {col['udt_name']}"
+        if col['is_primary_key']:
+          col_str += "; PK"
+        if col['is_foreign_key']:
+          col_str += f"; FK→{col['fk_table']}.{col['fk_column']}"
+        container.mount(Static(col_str))
+      container.mount(Static(""))
+
+  def action_dismiss(self) -> None:
+    self.dismiss()
 # }}}
