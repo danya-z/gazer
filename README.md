@@ -20,16 +20,25 @@ Developed for the BDI Laboratory at Purdue University.
 ### Requirements
 
 1. **Python 3.12+**
+More information about Python can be found on the official website
+https://python.org
 
 2. **pipx**
+Check if you have it installed with `pipx --version`. 
+If it is not installed, you can do so via pip or anaconda:
 ```bash
 pip install pipx
 pipx ensurepath
 ```
 
-3. **VPN Access** - Gazer can only connect to the database if you are under Purdue's "Zone-network-clients" VPN.
+```bash
+conda install -c conda-forge pipx
+pipx ensurepath
+```
 
-4. **Database Credentials** - Your credentials must be recognized by the BDI lab's PostgreSQL server.
+3. **VPN Access** - Gazer can connect to the bdi database only if you are under Purdue's `Zone-network-clients` VPN. If you have never connected to it before, open Cisco Secure Client (if you have never used the Client, more information and the download link can be found [here](https://it.purdue.edu/services/vpn.php)). Instead of using the Client's dropdown, manually enter `zonevpn.itap.purdue.edu/clients`, select Connect, and authenticate using your Purdue career account credentials (you might have to use Duo for this). On future connections the dropdown for the Client should populate automatically - then you can select `Zone-network-clients`.
+
+4. **Database Credentials** - Your credentials must be recognized by the BDI database (the lab's PostgreSQL server).
 
 ### Install Gazer
 ```bash
@@ -48,7 +57,7 @@ gazer
 
 ## Configuration
 
-On first run, Gazer will prompt for your database username, which is saved in `~/.gazer/config.json` for subsequent sessions. Database passwords are never stored and must be entered each time.
+On first run, Gazer will prompt for your database username, which is saved in `~/.gazer/config.json` for subsequent sessions. Database passwords are never stored and must be entered each time. If, for whatever reason, you want to change the database server you are connecting to, you can do so by modifying `~/.gazer/config.json`. I strongly advise against that unless you know what you are doing.
 
 ## Known Issues
 
