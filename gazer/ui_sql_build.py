@@ -11,7 +11,7 @@ from textual.widgets import Static, Input, Label, Header, Footer
 
 from .ui_error import ErrorOverlay
 from .ui_dropdown import Dropdown
-from .ui_output import ResultsScreen, ExportDialog, PresetPicker, PresetSaver
+from .ui_output import ResultsScreen, ExportDialog, PresetPicker, PresetSaver, SchemaScreen
 
 if TYPE_CHECKING:
   from .ui_main import GazerApp
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 class SQLBuilderScreen(Screen): # {{{
-  """Screen for building SQL queries with SELECT, FILTER, and SCHEMA panels."""
+  """Screen for building SQL queries with SELECT, ORDER BY, and FILTER panels."""
 
   BINDINGS = [
     ("escape", "app.pop_screen", "Back"),
@@ -27,6 +27,8 @@ class SQLBuilderScreen(Screen): # {{{
     ("ctrl+x", "export_query", "Export CSV"),
     ("ctrl+l", "load_preset", "Load Preset"),
     ("ctrl+s", "save_preset", "Save Preset"),
+    ("ctrl+d", "toggle_distinct", "Toggle DISTINCT"),
+    ("f1", "show_schema", "Schema"),
   ]
 
   def __init__(self, schema_inspector) -> None:
@@ -45,22 +47,34 @@ class SQLBuilderScreen(Screen): # {{{
     yield Static("Query Builder", id="title")
 
     with Container(id="main-container"):
-      # Left side: Query builder (SELECT + FILTER)
-      with Vertical(id="builder-panel"):
+      # Left: SELECT panel (full height)
+      with Vertical(id="select-panel"):
+        yield Label("SELECT:", classes="section-title")
+        yield Input(
+          placeholder="Type [table_name].column_name here",
+          classes="inline-input",
+          id="select-input"
+        )
+        yield Dropdown(mode="select", id="select-dropdown")
+        with ScrollableContainer(id="select-content", classes="content-area"):
+          yield Static("Awaiting SELECT Input")
 
-        # Upper left: SELECT section
-        with Container(id="select-section"):
-          yield Label("SELECT:", classes="section-title")
+      # Right: ORDER BY + FILTER
+      with Vertical(id="right-panel"):
+
+        # Upper right: ORDER BY section
+        with Container(id="order-section"):
+          yield Label("ORDER BY:", classes="section-title")
           yield Input(
             placeholder="Type [table_name].column_name here",
             classes="inline-input",
-            id="select-input"
+            id="order-input"
           )
-          yield Dropdown(mode="select", id="select-dropdown")
-          with ScrollableContainer(id="select-content", classes="content-area"):
-            yield Static("Awaiting SELECT Input")
+          yield Dropdown(mode="order", id="order-dropdown")
+          with ScrollableContainer(id="order-content", classes="content-area"):
+            yield Static("Awaiting ORDER Input")
 
-        # Lower left: FILTER section
+        # Lower right: FILTER section
         with Container(id="filter-section"):
           yield Label("FILTER:", classes="section-title")
           yield Static("", id="filter-progress")
@@ -72,12 +86,6 @@ class SQLBuilderScreen(Screen): # {{{
           yield Dropdown(mode="filter", id="filter-dropdown")
           with ScrollableContainer(id="filter-content", classes="content-area"):
             yield Static("Awaiting FILTER Input")
-
-      # Right side: Schema browser
-      with Container(id="schema-panel"):
-        yield Label("SCHEMA:", classes="section-title")
-        with ScrollableContainer(id="schema-content"):
-          yield Static("Fetching Schema...")
 
     yield Footer()
 
@@ -91,6 +99,7 @@ class SQLBuilderScreen(Screen): # {{{
   _PAIRS = {
     "select-input": "select-dropdown",
     "filter-input": "filter-dropdown",
+    "order-input": "order-dropdown",
   }
 
   def _active_dropdown(self) -> Dropdown | None:
@@ -145,6 +154,10 @@ class SQLBuilderScreen(Screen): # {{{
         # In VALUE stage, submit free text
         result = dropdown.submit_text(text, event.input)
         self._handle_result(result, event.input)
+      elif event.input.id == "order-input":
+        # In DIRECTION stage, submit free text (defaults to ASC)
+        result = dropdown.submit_text(text, event.input)
+        self._handle_result(result, event.input)
 
     # Update filter progress label
     if event.input.id == "filter-input":
@@ -178,6 +191,8 @@ class SQLBuilderScreen(Screen): # {{{
 
     if result["type"] == "filter":
       self._submit_filter(result)
+    elif result["type"] == "order":
+      self._submit_order(result)
 
   def _submit_filter(self, result: dict) -> None:
     """Add a completed filter to the query builder."""
@@ -198,6 +213,13 @@ class SQLBuilderScreen(Screen): # {{{
     self.refresh_display()
     # Clear progress label
     self.query_one("#filter-progress", Static).update("")
+
+  def _submit_order(self, result: dict) -> None:
+    """Add a completed ORDER BY entry to the query builder."""
+    app = cast("GazerApp", self.app)
+    query_builder = cast("QueryBuilder", app.query_builder)
+    query_builder.add_order_by(result["column"], result["direction"])
+    self.refresh_display()
 
   def _resolve_column(self, text: str) -> tuple[str, str] | None:
     """Parse input into (table, column). Returns None on error.
@@ -277,7 +299,7 @@ class SQLBuilderScreen(Screen): # {{{
       self.app.call_from_thread(self.show_error, "Schema", error_msg)
 
   def display_schema(self, schema_data: list, enum_values: dict) -> None:
-    """Display the schema and set up dropdowns."""
+    """Store schema and set up dropdowns."""
     self._schema_data = schema_data
 
     # Build lookup structures
@@ -293,8 +315,8 @@ class SQLBuilderScreen(Screen): # {{{
         self._column_types[f"{table}.{col['name']}"] = col['udt_name']
       self._table_columns[table] = col_names
 
-    # Pass schema data to both dropdowns
-    for dropdown_id in ("select-dropdown", "filter-dropdown"):
+    # Pass schema data to all dropdowns
+    for dropdown_id in ("select-dropdown", "filter-dropdown", "order-dropdown"):
       self.query_one(f"#{dropdown_id}", Dropdown).set_schema(
         self._table_columns, self._column_lookup,
         self._column_types, enum_values,
@@ -302,41 +324,26 @@ class SQLBuilderScreen(Screen): # {{{
 
     # Open the select dropdown (input is already focused)
     self.query_one("#select-dropdown", Dropdown).update("")
-
-    # Render schema tree
-    container = self.query_one("#schema-content", ScrollableContainer)
-    container.remove_children()
-
-    for item in schema_data:
-      table_name = item['table']
-      columns = item['columns']
-
-      container.mount(Static(table_name, classes="table-name"))
-      for i, col in enumerate(columns):
-        connector = "└─" if i == len(columns) - 1 else "├─"
-        col_str = f"  {connector} {col['name']}; {col['udt_name']}"
-        if col['is_primary_key']:
-          col_str += "; PK"
-        if col['is_foreign_key']:
-          col_str += f"; FK→{col['fk_table']}.{col['fk_column']}"
-        container.mount(Static(col_str))
-      container.mount(Static(""))
   # }}}
 
   # Displaying Query State {{{
   def refresh_display(self) -> None:
-    """Update SELECT and FILTER panels from the query builder state."""
+    """Update SELECT, ORDER BY, and FILTER panels from the query builder state."""
     app = cast("GazerApp", self.app)
     query_builder = cast("QueryBuilder", app.query_builder)
 
     state = query_builder.get_state()
     self._display_select(state)
     self._display_filters(state)
+    self._display_order_by(state)
 
   def _display_select(self, state: dict) -> None:
-    """Render current columns in the SELECT panel."""
+    """Render current columns in the SELECT panel, with DISTINCT badge if active."""
     container = self.query_one("#select-content", ScrollableContainer)
     container.remove_children()
+
+    if state.get('distinct'):
+      container.mount(Static("[DISTINCT]", classes="distinct-badge"))
 
     columns = state['columns']
     if not columns:
@@ -345,6 +352,19 @@ class SQLBuilderScreen(Screen): # {{{
 
     for col in columns:
       container.mount(Static(f"  - {col}"))
+
+  def _display_order_by(self, state: dict) -> None:
+    """Render current ORDER BY entries in the ORDER BY panel."""
+    container = self.query_one("#order-content", ScrollableContainer)
+    container.remove_children()
+
+    order_by = state['order_by']
+    if not order_by:
+      container.mount(Static("Awaiting ORDER Input"))
+      return
+
+    for entry in order_by:
+      container.mount(Static(f"  - {entry['column']} {entry['direction']}"))
 
   def _display_filters(self, state: dict) -> None:
     """Render current filters in the FILTER panel."""
@@ -377,6 +397,19 @@ class SQLBuilderScreen(Screen): # {{{
         lines.extend(self._format_filter_tree(child, indent + 1))
 
     return lines
+  # }}}
+
+  # Actions {{{
+  def action_toggle_distinct(self) -> None:
+    """Toggle DISTINCT on/off in the query builder."""
+    app = cast("GazerApp", self.app)
+    query_builder = cast("QueryBuilder", app.query_builder)
+    query_builder.toggle_distinct()
+    self.refresh_display()
+
+  def action_show_schema(self) -> None:
+    """Open the schema browser modal."""
+    self.app.push_screen(SchemaScreen(self._schema_data))
   # }}}
 
   # Presets {{{

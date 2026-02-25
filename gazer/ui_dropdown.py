@@ -27,10 +27,11 @@ TYPE_CATEGORIES = {
 
 class DropdownStage(Enum):
   """Stages the dropdown can be in."""
-  TABLE = auto()     # Choosing a table name
-  COLUMN = auto()    # Choosing a column within a table
-  OPERATOR = auto()  # Choosing a filter operator
-  VALUE = auto()     # Choosing/entering a filter value
+  TABLE = auto()      # Choosing a table name
+  COLUMN = auto()     # Choosing a column within a table
+  OPERATOR = auto()   # Choosing a filter operator
+  VALUE = auto()      # Choosing/entering a filter value
+  DIRECTION = auto()  # Choosing ORDER BY direction (ASC/DESC)
 # }}}
 
 
@@ -116,6 +117,8 @@ class Dropdown(OptionList): # {{{
       self._update_operator_stage(text)
     elif self.stage == DropdownStage.VALUE:
       self._update_value_stage(text)
+    elif self.stage == DropdownStage.DIRECTION:
+      self._update_direction_stage(text)
 
   def _update_column_stage(self, text: str) -> None:
     """Show table or column suggestions based on input text."""
@@ -167,6 +170,12 @@ class Dropdown(OptionList): # {{{
       # Free text — no dropdown suggestions
       self.close()
 
+  def _update_direction_stage(self, text: str) -> None:
+    """Show ASC/DESC suggestions for ORDER BY direction."""
+    options = ["ASC", "DESC"]
+    matches = [o for o in options if o.lower().startswith(text.lower())]
+    self._show_matches(matches)
+
   def _show_matches(self, matches: list[str]) -> None:
     """Populate with matches and open, or close if empty."""
     self.clear_options()
@@ -214,6 +223,13 @@ class Dropdown(OptionList): # {{{
         input_widget.cursor_position = len(input_widget.value)
         self.close()
         return None
+      elif self.mode == "order":
+        # Order mode: store column, advance to DIRECTION
+        self._picked_column = full_column
+        self.stage = DropdownStage.DIRECTION
+        input_widget.value = ""
+        self._update_direction_stage("")
+        return None
       else:
         # Filter mode: store column, advance to OPERATOR
         self._picked_column = full_column
@@ -248,12 +264,37 @@ class Dropdown(OptionList): # {{{
     elif self.stage == DropdownStage.VALUE:
       return self._submit_value(value, input_widget)
 
+    elif self.stage == DropdownStage.DIRECTION:
+      result = {
+        "type": "order",
+        "column": self._picked_column,
+        "direction": value,
+      }
+      self._reset_filter_state()
+      input_widget.value = ""
+      self.update("")
+      return result
+
     return None
 
   def submit_text(self, text: str, input_widget: Input) -> dict | None:
     """Submit free text (Enter without picking from dropdown).
-    Used for VALUE stage free text, or column confirmation in select mode.
+    Used for VALUE stage free text, DIRECTION stage default (ASC), or
+    column confirmation in select mode.
     """
+    if self.stage == DropdownStage.DIRECTION:
+      direction = text.strip().upper()
+      if direction not in ("ASC", "DESC"):
+        direction = "ASC"
+      result = {
+        "type": "order",
+        "column": self._picked_column,
+        "direction": direction,
+      }
+      self._reset_filter_state()
+      input_widget.value = ""
+      self.update("")
+      return result
     if self.stage == DropdownStage.VALUE:
       return self._submit_value(text, input_widget)
     return None
@@ -296,11 +337,13 @@ class Dropdown(OptionList): # {{{
     self._picked_operator = ""
 
   def get_progress_text(self) -> str:
-    """Return text showing the filter being built."""
+    """Return text showing the filter/order being built."""
     if self.stage == DropdownStage.OPERATOR:
       return f"{self._picked_column} ..."
     elif self.stage == DropdownStage.VALUE:
       return f"{self._picked_column} {self._picked_operator} ..."
+    elif self.stage == DropdownStage.DIRECTION:
+      return f"{self._picked_column} [ASC/DESC?]"
     return ""
   # }}}
 # }}}
