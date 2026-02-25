@@ -6,13 +6,17 @@ Screen {
   align: left top;
 }
 
+HeaderIcon {
+  display: none;
+}
+
 #title {
   text-align: center;
   text-style: bold;
   color: $accent;
   padding: 1;
   margin: 1 0;
-  outline: double $accent;
+  border: double $accent;
 }
 
 /* ===========================
@@ -23,7 +27,7 @@ Screen {
   text-align: left;
   padding: 1;
   margin: 1 0;
-  outline: solid $primary;
+  border: solid $primary;
 }
 
 ConnectionScreen Horizontal {
