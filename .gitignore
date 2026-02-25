@@ -20,6 +20,9 @@ ENV/
 .DS_Store
 Thumbs.db
 
+# Poetry
+poetry.lock
+
 # Distribution / packaging
 *.egg-info/
 dist/

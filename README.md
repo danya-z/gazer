@@ -10,44 +10,56 @@ Developed for the BDI Laboratory at Purdue University.
 - ✅ Database connection to Purdue PostgreSQL server with authentication
 - ✅ Schema fetching and caching
 - ✅ Error handling with detailed diagnostics and clipboard support
-- 🚧 Query builder interface (in progress)
-- 🚧 CSV/MATLAB import and export (planned)
+- ✅ Query builder interface
+- ✅ CSV export
+- 🚧 CSV/MATLAB import (planned)
+- 🚧 MATLAB export (planned)
 
 ## Installation
 
 ### Requirements
 
-1. **Poetry** - Dependency management tool
-```bash
-# Install Poetry (if not already installed)
-curl -sSL https://install.python-poetry.org | python3 -
+1. **Python 3.12+**.
+More information about Python can be found on the official website
+https://python.org.
 
-# Or on Windows (PowerShell)
-(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | python -
-```
+2. **pipx**.
+Ensure `pipx` is installed with `pipx --version`. 
+If it is not installed, you can do so via pip:
+    ```bash
+    pip install pipx
+    pipx ensurepath
+    ```
+    If you prefer anaconda to pip, run the following instead:
+    ```bash
+    conda install -c conda-forge pipx
+    pipx ensurepath
+    ```
 
-  Verify installation: `poetry --version`
+3. **VPN Access**. Gazer requires you to be connected to Purdue's `Zone-network-clients` VPN. If you have never done so before, open Cisco Secure Client (if you have never used Client, find the relevant information and the download link can be found [here](https://it.purdue.edu/services/vpn.php)).
 
-2. **VPN Access** - Gazer can only connect to the database if you are under the Purdue's "Zone-network-clients" VPN.
+    Instead of using the Client's dropdown select, manually enter `zonevpn.itap.purdue.edu/clients`. Select Connect, and authenticate using your Purdue career account credentials (you might have to use Duo for this). On future connections the dropdown for the Client should populate automatically - then you can select `Zone-network-clients`.
 
-3. **Database Credentials** - Your credentials must be recognized by the BDI lab's PostgreSQL server (TODO, add more specific instructions for new users).
+4. **Database Credentials**. Your credentials must be recognized by the BDI database (the lab's PostgreSQL server).
 
 ### Install Gazer
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd gazer
-
-# Install dependencies using Poetry
-poetry install
-
-# Run the application
-poetry run gazer
+pipx install git+https://github.com/danya-z/gazer.git
 ```
+
+### Run
+After you have connected to the `Zone-network-clients` VPN, run `gazer` in your terminal.
+
+### Update Gazer
+Gazer does not update automatically. To update gazer, run
+```bash
+pipx install git+https://github.com/danya-z/gazer.git --force
+```
+This will not damage your config file; your saved username and defaults should not be overwritten by updates (they can, however, become obsolete).
 
 ## Configuration
 
-On first run, Gazer will prompt for your database username, which is saved in ~/.gazer/config.json for subsequent sessions. Database passwords are never stored and must be entered each time.
+On first run, Gazer will prompt for your database username, which is saved in `~/.gazer/config.json` for subsequent sessions. Database passwords are never stored and must be entered each time. If, for whatever reason, you want to change the database server you are connecting to, you can do so by modifying `~/.gazer/config.json`. I strongly advise against that unless you are confident you know what you are doing.
 
 ## Known Issues
 
