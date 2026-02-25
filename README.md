@@ -21,22 +21,24 @@ Developed for the BDI Laboratory at Purdue University.
 
 1. **Python 3.12+**.
 More information about Python can be found on the official website
-https://python.org
+https://python.org.
 
 2. **pipx**.
 Ensure `pipx` is installed with `pipx --version`. 
-If it is not installed, you can install it via pip:
-```bash
-pip install pipx
-pipx ensurepath
-```
-Alternatively, you can use anaconda:
-```bash
-conda install -c conda-forge pipx
-pipx ensurepath
-```
+If it is not installed, you can do so via pip:
+    ```bash
+    pip install pipx
+    pipx ensurepath
+    ```
+    If you prefer anaconda to pip, run the following instead:
+    ```bash
+    conda install -c conda-forge pipx
+    pipx ensurepath
+    ```
 
-3. **VPN Access**. Gazer requires you to be connected to Purdue's `Zone-network-clients` VPN. If you have never done so before, open Cisco Secure Client (if you have never used Client, find the relevant information and the download link can be found [here](https://it.purdue.edu/services/vpn.php)). Instead of using the Client's dropdown select, manually enter `zonevpn.itap.purdue.edu/clients`. Select Connect, and authenticate using your Purdue career account credentials (you might have to use Duo for this). On future connections the dropdown for the Client should populate automatically -- then you can select `Zone-network-clients`.
+3. **VPN Access**. Gazer requires you to be connected to Purdue's `Zone-network-clients` VPN. If you have never done so before, open Cisco Secure Client (if you have never used Client, find the relevant information and the download link can be found [here](https://it.purdue.edu/services/vpn.php)).
+
+    Instead of using the Client's dropdown select, manually enter `zonevpn.itap.purdue.edu/clients`. Select Connect, and authenticate using your Purdue career account credentials (you might have to use Duo for this). On future connections the dropdown for the Client should populate automatically - then you can select `Zone-network-clients`.
 
 4. **Database Credentials**. Your credentials must be recognized by the BDI database (the lab's PostgreSQL server).
 
@@ -46,10 +48,7 @@ pipx install git+https://github.com/danya-z/gazer.git
 ```
 
 ### Run
-After you have connected to the `Zone-network-clients` VPN, run
-```bash
-gazer
-```
+After you have connected to the `Zone-network-clients` VPN, run `gazer` in your terminal.
 
 ### Update Gazer
 Gazer does not update automatically. To update gazer, run
