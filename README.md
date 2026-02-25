@@ -45,15 +45,18 @@ pipx ensurepath
 pipx install git+https://github.com/danya-z/gazer.git
 ```
 
-### Update Gazer
-```bash
-pipx install git+https://github.com/danya-z/gazer.git --force
-```
-
 ### Run
+After you have connected to the `Zone-network-clients` VPN, run
 ```bash
 gazer
 ```
+
+### Update Gazer
+Gazer does not update automatically. To update gazer, run
+```bash
+pipx install git+https://github.com/danya-z/gazer.git --force
+```
+This will not damage your config file; your saved username and defaults should not be overwritten by updates (they can, however, become obsolete).
 
 ## Configuration
 
