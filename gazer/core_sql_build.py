@@ -260,6 +260,11 @@ class QueryBuilder:
     self._order_by.append({"column": column, "direction": direction})
     return self
 
+  def remove_order_by(self, index: int) -> QueryBuilder:
+    if 0 <= index < len(self._order_by):
+      self._order_by.pop(index)
+    return self
+
   def clear_order_by(self) -> QueryBuilder:
     self._order_by = []
     return self
