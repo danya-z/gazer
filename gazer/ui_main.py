@@ -12,9 +12,32 @@ from .core_connect import DBConnector
 from .core_schema import SchemaInspector
 from .core_sql_build import QueryBuilder
 from .ui_sql_build import SQLBuilderScreen
+from .ui_selection_panel import SchemaData
 from .ui_error import ErrorOverlay
 from .mem_config import Config
-from .mem_schema import save_cache
+from .mem_schema import save_cache, load_cache
+
+
+def _build_schema_data(schema_data_raw: list[dict],
+                       enum_values: dict[str, list[str]] | None = None) -> SchemaData:
+  """Build a SchemaData from raw column dicts."""
+  table_columns: dict[str, list[str]] = {}
+  column_lookup: dict[str, list[str]] = {}
+  column_types: dict[str, str] = {}
+  for item in schema_data_raw:
+    table = item['table']
+    col_names = []
+    for col in item['columns']:
+      col_names.append(col['name'])
+      column_lookup.setdefault(col['name'], []).append(table)
+      column_types[f"{table}.{col['name']}"] = col['udt_name']
+    table_columns[table] = col_names
+  return SchemaData(
+    table_columns=table_columns,
+    column_lookup=column_lookup,
+    column_types=column_types,
+    enum_values=enum_values or {},
+  )
 
 
 # GazerApp {{{
@@ -35,6 +58,9 @@ class GazerApp(App):
     self.db: DBConnector | None = None
     self.schema_inspector: SchemaInspector | None = None
     self.query_builder: QueryBuilder | None = None
+    self.schema: SchemaData | None = None
+    self.schema_data_raw: list[dict] = []
+    self.fk_list: list[dict] = []
 
   def on_mount(self) -> None:
     """Show connection screen on startup."""
@@ -131,24 +157,25 @@ class ConnectionScreen(Screen):
 
   # Connection Animation {{{
   def start_connecting_animation(self) -> None:
-    """Start animated 'Connecting...' message."""
+    """Start animated loading message."""
     self._connecting: bool = True
     self._animation_dots: int = 0
+    self._animation_label: str = "Connecting"
     self._animation_timer = self.set_interval(0.5, self.update_connecting_animation)
 
   def update_connecting_animation(self) -> None:
-    """Update the connecting animation."""
+    """Update the loading animation."""
     if not self._connecting:
       return
 
     error_display = self.query_one("#error_display", Static)
-    animation_states = [
-      "Connecting·..",
-      "Connecting.·.",
-      "Connecting..·",
-    ]
-    error_display.update(animation_states[self._animation_dots])
+    dots = ["·..", ".·.", "..·"]
+    error_display.update(f"{self._animation_label}{dots[self._animation_dots]}")
     self._animation_dots = (self._animation_dots + 1) % 3
+
+  def _set_animation_label(self, label: str) -> None:
+    """Change the loading animation text."""
+    self._animation_label = label
 
   def stop_connecting_animation(self) -> None:
     """Stop the connecting animation and clear message."""
@@ -175,20 +202,72 @@ class ConnectionScreen(Screen):
       self.app.call_from_thread(self.show_error, e)
       return
 
-    # Connection succeeded — fetch FK relationships (non-fatal if this fails)
+    # Connection succeeded — resolve schema: memory > disk > DB
+    app = cast(GazerApp, self.app)
     inspector = SchemaInspector(db)
     fk_list: list[dict] = []
-    try:
-      fk_list = inspector.fetch_all_foreign_keys()
-      save_cache(host, database, fk_list)
-    except Exception as e:
-      error_msg = f"{type(e).__name__}: {e}"
-      self.app.call_from_thread(self.show_schema_warning, error_msg)
+    schema_data_raw: list[dict] = []
+    schema: SchemaData | None = None
 
-    self.app.call_from_thread(self.connection_success, db, username, inspector, fk_list)
+    if app.schema is not None:
+      # In-memory cache (reconnect within same session)
+      fk_list = app.fk_list
+      schema = app.schema
+      schema_data_raw = app.schema_data_raw
+    else:
+      self.app.call_from_thread(self._set_animation_label, "Fetching schema")
+      # Try disk cache
+      cached = load_cache(host, database)
+      if cached and cached.get("schema_data"):
+        fk_list = cached["foreign_keys"]
+        schema_data_raw = cached["schema_data"]
+        # Enum values aren't cached to disk — fetch them
+        disk_enums: dict[str, list[str]] = {}
+        for item in schema_data_raw:
+          for col in item['columns']:
+            udt = col['udt_name']
+            if col['type'] == 'USER-DEFINED' and udt not in disk_enums:
+              try:
+                disk_enums[udt] = inspector.get_enum_values(udt)
+              except Exception:
+                pass
+        schema = _build_schema_data(schema_data_raw, disk_enums)
+      else:
+        # Fetch from DB
+        try:
+          fk_list = inspector.fetch_all_foreign_keys()
+        except Exception as e:
+          error_msg = f"{type(e).__name__}: {e}"
+          self.app.call_from_thread(self.show_schema_warning, error_msg)
+
+        try:
+          tables = inspector.get_tables()
+          for table in tables:
+            columns = inspector.get_columns(table)
+            schema_data_raw.append({'table': table, 'columns': columns})
+
+          enum_values: dict[str, list[str]] = {}
+          for item in schema_data_raw:
+            for col in item['columns']:
+              udt = col['udt_name']
+              if col['type'] == 'USER-DEFINED' and udt not in enum_values:
+                enum_values[udt] = inspector.get_enum_values(udt)
+
+          schema = _build_schema_data(schema_data_raw, enum_values)
+          save_cache(host, database, fk_list, schema_data_raw)
+        except Exception as e:
+          error_msg = f"{type(e).__name__}: {e}"
+          self.app.call_from_thread(self.show_schema_warning, error_msg)
+
+    self.app.call_from_thread(
+      self.connection_success, db, username, inspector, fk_list,
+      schema, schema_data_raw,
+    )
 
   def connection_success(self, db: DBConnector, username: str,
-                         inspector: SchemaInspector, fk_list: list[dict]) -> None:
+                         inspector: SchemaInspector, fk_list: list[dict],
+                         schema: SchemaData | None,
+                         schema_data_raw: list[dict]) -> None:
     """Called on successful connection from main thread."""
     app = cast(GazerApp, self.app)
 
@@ -196,9 +275,12 @@ class ConnectionScreen(Screen):
     app.config.set_username(username)
     app.db = db
     app.schema_inspector = inspector
+    app.schema = schema
+    app.schema_data_raw = schema_data_raw
+    app.fk_list = fk_list
     app.query_builder = QueryBuilder()
     app.query_builder.set_foreign_keys(fk_list)
-    app.push_screen(SQLBuilderScreen(app.schema_inspector))
+    app.push_screen(SQLBuilderScreen())
 
   def show_schema_warning(self, error_msg: str) -> None:
     """Show non-fatal schema fetch error. Connection still proceeds."""

@@ -155,10 +155,18 @@ SQLBuilderScreen {
 }
 
 /* ===========================
-   Dropdown Overlay
+   Selection Panels
    =========================== */
 
-Dropdown {
+SelectionPanel {
+  layout: vertical;
+}
+
+/* ===========================
+   Autocomplete Overlay
+   =========================== */
+
+Autocomplete {
   width: 1fr;
   display: none;
   height: auto;
@@ -170,22 +178,8 @@ Dropdown {
   margin: 0;
 }
 
-#select-panel.-dropdown-open Dropdown {
+SelectionPanel.-dropdown-open Autocomplete {
   display: block;
-}
-
-#filter-section.-dropdown-open Dropdown {
-  display: block;
-}
-
-#order-section.-dropdown-open Dropdown {
-  display: block;
-}
-
-#filter-progress {
-  padding: 0 1;
-  color: $text-muted;
-  height: auto;
 }
 
 /* ===========================
