@@ -3,13 +3,32 @@ from pathlib import Path
 
 
 PRESETS_FILE = Path.home() / ".gazer" / "presets.json"
-
+DEFAULT_PRESET = """{
+  "presets": {
+    "Standard Out": [
+      "wells.plate_id",
+      "wells.well_number",
+      "tissues.cell_line",
+      "tissues.growth_method",
+      "treatments.treatment_name",
+      "treatments.concentration",
+      "wells.t0",
+      "wells.tf",
+      "wells.dt",
+      "wells.f1",
+      "wells.f2",
+      "wells.channel",
+      "wells.comments"
+    ]
+  }
+}"""
 
 # Load / Save {{{
 def load_presets() -> dict[str, list[str]]:
   """Load all presets from file. Returns empty dict on missing/corrupted file."""
   if not PRESETS_FILE.exists():
-    return {}
+    with open(PRESETS_FILE, 'w') as f:
+      f.write(DEFAULT_PRESET)
   try:
     with open(PRESETS_FILE, 'r') as f:
       data = json.load(f)
