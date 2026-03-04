@@ -421,7 +421,7 @@ class SelectionPanel(Widget):
     # Clamp cursor
     if self._cursor_index >= selectable_count:
       self._cursor_index = max(0, selectable_count - 1)
-    self._apply_visuals()
+    self.call_after_refresh(self._apply_visuals)
 
   def _get_selectable_entries(self) -> list[ContentEntry]:
     """Return only the selectable ContentEntry widgets in order."""
@@ -532,7 +532,7 @@ class SelectionPanel(Widget):
 
     entries = self._get_selectable_entries()
 
-    if event.key == "down":
+    if event.key in ("down", "j"):
       event.stop()
       event.prevent_default()
       if self._cursor_index < self._entry_count - 1:
@@ -540,7 +540,7 @@ class SelectionPanel(Widget):
         self._apply_visuals()
         entries[self._cursor_index].scroll_visible()
 
-    elif event.key == "up":
+    elif event.key in ("up", "k"):
       event.stop()
       event.prevent_default()
       if self._cursor_index > 0:
@@ -555,7 +555,7 @@ class SelectionPanel(Widget):
       if entry.data_index is not None:
         self._toggle_selection(entry.data_index)
 
-    elif event.key in ("delete", "backspace"):
+    elif event.key in ("delete", "backspace", "d"):
       event.stop()
       event.prevent_default()
       if self._selected_indices:
