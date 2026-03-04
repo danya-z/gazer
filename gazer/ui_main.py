@@ -7,6 +7,7 @@ from textual.screen import Screen
 from textual.widgets import Header, Footer, Static, Input, Label
 from textual.containers import Horizontal
 from textual.binding import Binding
+from textual.theme import Theme
 
 from .core_connect import DBConnector
 from .core_schema import SchemaInspector
@@ -54,6 +55,30 @@ class GazerApp(App):
 
   def __init__(self) -> None:
     super().__init__()
+    self.register_theme(Theme(
+      name="vscode-dark",
+      primary="#2472c8",
+      secondary="#11a8cd",
+      background="#1e1e1e",
+      foreground="#cccccc",
+      surface="#252526",
+      panel="#2d2d2d",
+      accent="#3b8eea",
+      error="#f14c4c",
+      warning="#e5e510",
+      success="#0dbc79",
+      dark=True,
+      variables={
+        "border": "#3b8eea",
+        "border-blurred": "#666666",
+        "footer-background": "#252526",
+        "footer-key-foreground": "#3b8eea",
+        "input-cursor-background": "#cccccc",
+        "input-cursor-foreground": "#1e1e1e",
+        "scrollbar": "#666666",
+      },
+    ))
+    self.theme = "vscode-dark"
     self.config = Config()
     self.db: DBConnector | None = None
     self.schema_inspector: SchemaInspector | None = None

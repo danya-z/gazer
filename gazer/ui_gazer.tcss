@@ -113,22 +113,22 @@ SQLBuilderScreen {
 
 #select-panel {
   width: 1fr;
-  border: solid green;
+  border: solid $primary;
 }
 
 #right-panel {
   width: 1fr;
-  border: solid green;
+  border: solid $primary;
 }
 
 #order-section {
   height: 1fr;
-  border: solid yellow;
+  border: solid $secondary;
 }
 
 #filter-section {
   height: 2fr;
-  border: solid yellow;
+  border: solid $secondary;
 }
 
 .section-title {
@@ -173,8 +173,8 @@ Autocomplete {
   max-height: 8;
   overlay: screen;
   constrain: none inside;
-  background: $surface;
-  border: tall $border-blurred;
+  background: $panel;
+  border: tall $accent;
   margin: 0;
 }
 
