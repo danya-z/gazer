@@ -44,7 +44,7 @@ If it is not installed, you can do so via pip:
 
 ### Install Gazer
 ```bash
-pipx install git+https://github.com/danya-z/gazer.git
+pipx install git+https://github.itap.purdue.edu/Nolte-Group/gazer.git
 ```
 
 ### Run
@@ -53,7 +53,7 @@ After you have connected to the `Zone-network-clients` VPN, run `gazer` in your 
 ### Update Gazer
 Gazer does not update automatically. To update gazer, run
 ```bash
-pipx install git+https://github.com/danya-z/gazer.git --force
+pipx install git+https://github.itap.purdue.edu/Nolte-Group/gazer.git --force
 ```
 This will not damage your config file; your saved username and defaults should not be overwritten by updates (they can, however, become obsolete).
 
