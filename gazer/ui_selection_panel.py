@@ -5,6 +5,7 @@ from typing import Any, Callable
 
 from textual import events
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import ScrollableContainer
 from textual.message import Message
 from textual.widget import Widget
@@ -264,6 +265,14 @@ class SelectionPanel(Widget):
   Posts EntryAdded upward when the pipeline completes.
   The parent Screen calls set_entries() to update the display.
   """
+
+  BINDINGS = [
+    Binding("space", "content_select", "Select", show=True),
+    Binding("d", "content_delete", "Del", show=True),
+    Binding("a", "content_group_and", "AND", show=True),
+    Binding("o", "content_group_or", "OR", show=True),
+    Binding("s", "content_swap", "Swap", show=True),
+  ]
 
   class EntryAdded(Message):
     """Pipeline completed — a new entry was produced."""
@@ -548,49 +557,64 @@ class SelectionPanel(Widget):
         self._apply_visuals()
         entries[self._cursor_index].scroll_visible()
 
-    elif event.key == "space" or event.key == "enter":
+    elif event.key in ("delete", "backspace"):
       event.stop()
       event.prevent_default()
-      entry = entries[self._cursor_index]
-      if entry.data_index is not None:
-        self._toggle_selection(entry.data_index)
-
-    elif event.key in ("delete", "backspace", "d"):
-      event.stop()
-      event.prevent_default()
-      if self._selected_indices:
-        indices = sorted(self._selected_indices)
-      else:
-        entry = entries[self._cursor_index]
-        if entry.data_index is None:
-          return
-        indices = [entry.data_index]
-      self.post_message(self.EntryRemoved(panel=self, indices=indices))
-
-    elif event.key == "a" and self._selected_indices and len(self._selected_indices) >= 2:
-      event.stop()
-      event.prevent_default()
-      self.post_message(self.EntriesGrouped(
-        panel=self, indices=sorted(self._selected_indices), logic="AND"
-      ))
-
-    elif event.key == "o" and self._selected_indices and len(self._selected_indices) >= 2:
-      event.stop()
-      event.prevent_default()
-      self.post_message(self.EntriesGrouped(
-        panel=self, indices=sorted(self._selected_indices), logic="OR"
-      ))
-
-    elif event.key == "s":
-      event.stop()
-      event.prevent_default()
-      entry = entries[self._cursor_index]
-      if entry.data_index is not None:
-        self.post_message(self.EntrySwapped(panel=self, index=entry.data_index))
+      self.action_content_delete()
 
     elif event.key == "escape":
       event.stop()
       event.prevent_default()
       self._clear_selection()
+  # }}}
+
+  # Content area actions {{{
+  def action_content_select(self) -> None:
+    """Toggle selection on the cursored entry."""
+    if not self._content_has_focus() or self._entry_count == 0:
+      return
+    entries = self._get_selectable_entries()
+    entry = entries[self._cursor_index]
+    if entry.data_index is not None:
+      self._toggle_selection(entry.data_index)
+
+  def action_content_delete(self) -> None:
+    """Delete selected entries, or the cursored entry."""
+    if not self._content_has_focus() or self._entry_count == 0:
+      return
+    entries = self._get_selectable_entries()
+    if self._selected_indices:
+      indices = sorted(self._selected_indices)
+    else:
+      entry = entries[self._cursor_index]
+      if entry.data_index is None:
+        return
+      indices = [entry.data_index]
+    self.post_message(self.EntryRemoved(panel=self, indices=indices))
+
+  def action_content_group_and(self) -> None:
+    """Group selected entries as AND."""
+    if not self._content_has_focus() or len(self._selected_indices) < 2:
+      return
+    self.post_message(self.EntriesGrouped(
+      panel=self, indices=sorted(self._selected_indices), logic="AND"
+    ))
+
+  def action_content_group_or(self) -> None:
+    """Group selected entries as OR."""
+    if not self._content_has_focus() or len(self._selected_indices) < 2:
+      return
+    self.post_message(self.EntriesGrouped(
+      panel=self, indices=sorted(self._selected_indices), logic="OR"
+    ))
+
+  def action_content_swap(self) -> None:
+    """Swap a group's logic (AND ↔ OR)."""
+    if not self._content_has_focus() or self._entry_count == 0:
+      return
+    entries = self._get_selectable_entries()
+    entry = entries[self._cursor_index]
+    if entry.data_index is not None:
+      self.post_message(self.EntrySwapped(panel=self, index=entry.data_index))
   # }}}
 # }}}

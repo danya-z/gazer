@@ -4,7 +4,7 @@ from typing import cast
 from textual import work
 from textual.app import App, ComposeResult
 from textual.screen import Screen
-from textual.widgets import Header, Footer, Static, Input, Label
+from textual.widgets import Footer, Static, Input, Label
 from textual.containers import Horizontal
 from textual.binding import Binding
 from textual.theme import Theme
@@ -113,12 +113,10 @@ class ConnectionScreen(Screen):
   def compose(self) -> ComposeResult:
     app = cast(GazerApp, self.app)
 
-    yield Header()
     yield Static("Database Connection", id="title")
     yield Label(
-      'Welcome to Gazer - the database query builder, written for bdi laboratory at Purdue.\n\n'
-      'You can configure the connection settings by pressing ^s (Ctrl-S).\n'
-      'Escape will bring you back, and ^c (Ctrl-C) will always kill the program.',
+      'Gazer — database query builder for BDI Laboratory at Purdue.\n'
+      'Keyboard-driven: Tab/Shift-Tab to navigate, Escape to go back, Ctrl-C to quit.',
       id="welcome"
     )
 

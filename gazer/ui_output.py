@@ -232,3 +232,52 @@ class SchemaScreen(ModalScreen): # {{{
   def action_dismiss(self) -> None:
     self.dismiss()
 # }}}
+
+
+class HelpScreen(ModalScreen): # {{{
+  """Modal screen showing query builder help."""
+
+  BINDINGS = [
+    Binding("escape", "dismiss", "Dismiss", show=False),
+  ]
+
+  HELP_TEXT = """\
+Gazer Query Builder
+
+Navigate between panels with Tab / Shift-Tab.
+Each panel has an input field and a content area.
+
+INPUT FIELD
+  Type a table name to see columns, then pick with Enter.
+  FILTER: column → operator → value (multi-stage).
+  ORDER BY: column → ASC/DESC.
+
+CONTENT AREA (Tab into it)
+  j/k or ↑/↓    Move cursor
+  Space/Enter    Toggle selection
+  d/Delete/Bksp  Delete selected (or cursored) entry
+  s              Swap group logic (AND ↔ OR)
+  a              Group selected as AND (2+ selected, FILTER)
+  o              Group selected as OR  (2+ selected, FILTER)
+  Escape         Clear selection
+
+GLOBAL
+  Ctrl-R    Run query
+  Ctrl-X    Export to CSV
+  Ctrl-L    Load preset
+  Ctrl-S    Save preset
+  F1        Show schema
+  Ctrl-H    This help
+  Escape    Back / Quit\
+"""
+
+  def compose(self) -> ComposeResult:
+    with Vertical(id="schema-box"):
+      yield Label("HELP", id="schema-title")
+      with ScrollableContainer(id="schema-content"):
+        yield Static(self.HELP_TEXT)
+      yield Static("'escape' dismiss", classes="hint")
+
+  def action_dismiss(self) -> None:
+    self.dismiss()
+# }}}

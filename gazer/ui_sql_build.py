@@ -5,7 +5,7 @@ from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container, Vertical
 from textual.screen import Screen
-from textual.widgets import Static, Header, Footer
+from textual.widgets import Static, Footer
 
 from .ui_error import ErrorOverlay
 from .core_sql_build import Filter, FilterGroup
@@ -13,7 +13,7 @@ from .ui_selection_panel import (
   SelectionPanel,
   make_select_pipeline, make_filter_pipeline, make_order_pipeline,
 )
-from .ui_output import ResultsScreen, ExportDialog, PresetPicker, PresetSaver, SchemaScreen
+from .ui_output import ResultsScreen, ExportDialog, PresetPicker, PresetSaver, SchemaScreen, HelpScreen
 
 if TYPE_CHECKING:
   from .ui_main import GazerApp
@@ -30,6 +30,7 @@ class SQLBuilderScreen(Screen): # {{{
     ("ctrl+l", "load_preset", "Load Preset"),
     ("ctrl+s", "save_preset", "Save Preset"),
     ("f1", "show_schema", "Schema"),
+    ("ctrl+h", "show_help", "Help"),
   ]
 
   def __init__(self) -> None:
@@ -38,7 +39,6 @@ class SQLBuilderScreen(Screen): # {{{
 
   # Compose {{{
   def compose(self) -> ComposeResult:
-    yield Header()
     yield Static("Query Builder", id="title")
 
     with Container(id="main-container"):
@@ -297,6 +297,9 @@ class SQLBuilderScreen(Screen): # {{{
   # Actions {{{
   def action_show_schema(self) -> None:
     self.app.push_screen(SchemaScreen(self._app.schema_data_raw))
+
+  def action_show_help(self) -> None:
+    self.app.push_screen(HelpScreen())
   # }}}
 
   # Presets {{{
