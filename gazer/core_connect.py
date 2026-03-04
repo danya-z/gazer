@@ -29,9 +29,13 @@ class DBConnector: # {{{
     """Execute a SELECT query and return rows as a list of DictRows."""
     if not self.conn:
       raise RuntimeError("Not connected to database")
-    with self.conn.cursor(cursor_factory=DictCursor) as cur:
-      cur.execute(sql, params if params is not None else ())
-      return cur.fetchall()
+    try:
+      with self.conn.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute(sql, params if params is not None else ())
+        return cur.fetchall()
+    except Exception:
+      self.conn.rollback()
+      raise
 
   def execute_command(self, sql: str, params: tuple | list | None = None) -> int:
     """Execute INSERT/UPDATE/DELETE and return rowcount."""
