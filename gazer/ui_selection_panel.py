@@ -5,7 +5,7 @@ from typing import Any, Callable
 
 from textual import events
 from textual.app import ComposeResult
-from textual.containers import Horizontal, ScrollableContainer
+from textual.containers import ScrollableContainer
 from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import Static, Input, Label
@@ -56,6 +56,20 @@ TYPE_CATEGORIES = {
   "bool": "bool",
   "date": "date", "timestamp": "date", "timestamptz": "date", "time": "date",
 }
+# }}}
+
+
+# ContentEntry widget {{{
+class ContentEntry(Static):
+  """A single entry in the content area. Styled via .-cursor and .-selected."""
+
+  def __init__(self, text: str, data_index: int | None = None, **kwargs) -> None:
+    super().__init__(text, **kwargs)
+    self.data_index = data_index
+
+  @property
+  def selectable(self) -> bool:
+    return self.data_index is not None
 # }}}
 
 
@@ -248,7 +262,7 @@ def make_order_pipeline() -> list[Stage]:
 class SelectionPanel(Widget):
   """Composed widget: Input + Autocomplete + content area with a stage pipeline.
   Posts EntryAdded upward when the pipeline completes.
-  The parent Screen calls set_content() to update the display.
+  The parent Screen calls set_entries() to update the display.
   """
 
   class EntryAdded(Message):
@@ -257,6 +271,28 @@ class SelectionPanel(Widget):
       super().__init__()
       self.panel = panel
       self.result = result
+
+  class EntryRemoved(Message):
+    """User deleted entries from the content area."""
+    def __init__(self, panel: SelectionPanel, indices: list[int]) -> None:
+      super().__init__()
+      self.panel = panel
+      self.indices = indices
+
+  class EntriesGrouped(Message):
+    """User grouped entries (FILTER only)."""
+    def __init__(self, panel: SelectionPanel, indices: list[int], logic: str) -> None:
+      super().__init__()
+      self.panel = panel
+      self.indices = indices
+      self.logic = logic
+
+  class EntrySwapped(Message):
+    """User toggled a group's logic (AND↔OR)."""
+    def __init__(self, panel: SelectionPanel, index: int) -> None:
+      super().__init__()
+      self.panel = panel
+      self.index = index
 
   def __init__(
     self,
@@ -273,6 +309,10 @@ class SelectionPanel(Widget):
     self._partial_state: dict = {}
     self._schema: SchemaData | None = None
     self._suppress_input_change: bool = False
+    # Content area state
+    self._cursor_index: int = 0
+    self._selected_indices: set[int] = set()
+    self._entry_count: int = 0
 
   # Compose {{{
   def compose(self) -> ComposeResult:
@@ -283,7 +323,7 @@ class SelectionPanel(Widget):
       id=f"{self.id}-input",
     )
     yield Autocomplete(id=f"{self.id}-autocomplete")
-    with ScrollableContainer(id=f"{self.id}-content", classes="content-area"):
+    with ScrollableContainer(id=f"{self.id}-content", classes="content-area", can_focus=True):
       yield Static(f"Awaiting {self._title.rstrip(':')} Input")
   # }}}
 
@@ -353,12 +393,77 @@ class SelectionPanel(Widget):
       input_widget.placeholder = self._placeholder
   # }}}
 
+  # Content area {{{
+  def set_entries(self, entries: list[tuple[str, int | None]]) -> None:
+    """Replace the content area with structured entries.
+    Each entry is (display_text, data_index). data_index=None means non-selectable.
+    """
+    container = self.query_one(f"#{self.id}-content", ScrollableContainer)
+    container.remove_children()
+    self._entry_count = 0
+
+    if not entries:
+      container.mount(Static(f"Awaiting {self._title.rstrip(':')} Input"))
+      self._cursor_index = 0
+      self._selected_indices.clear()
+      return
+
+    valid_indices: set[int] = set()
+    selectable_count = 0
+    for text, data_index in entries:
+      container.mount(ContentEntry(text, data_index=data_index))
+      if data_index is not None:
+        selectable_count += 1
+        valid_indices.add(data_index)
+
+    self._entry_count = selectable_count
+    self._selected_indices &= valid_indices
+    # Clamp cursor
+    if self._cursor_index >= selectable_count:
+      self._cursor_index = max(0, selectable_count - 1)
+    self._apply_visuals()
+
+  def _get_selectable_entries(self) -> list[ContentEntry]:
+    """Return only the selectable ContentEntry widgets in order."""
+    container = self.query_one(f"#{self.id}-content", ScrollableContainer)
+    return [w for w in container.query(ContentEntry) if w.selectable]
+
+  def _apply_visuals(self) -> None:
+    """Set both .-cursor and .-selected classes on all entries."""
+    entries = self._get_selectable_entries()
+    for i, entry in enumerate(entries):
+      entry.set_class(i == self._cursor_index, "-cursor")
+      entry.set_class(entry.data_index in self._selected_indices, "-selected")
+
+  def _toggle_selection(self, data_index: int) -> None:
+    """Toggle .-selected class for the entry with given data_index."""
+    if data_index in self._selected_indices:
+      self._selected_indices.discard(data_index)
+    else:
+      self._selected_indices.add(data_index)
+    self._apply_visuals()
+
+  def _clear_selection(self) -> None:
+    """Clear all selections."""
+    self._selected_indices.clear()
+    entries = self._get_selectable_entries()
+    for entry in entries:
+      entry.remove_class("-selected")
+
+  def _content_has_focus(self) -> bool:
+    """Check if the content area ScrollableContainer has focus."""
+    container = self.query_one(f"#{self.id}-content", ScrollableContainer)
+    return container.has_focus
+  # }}}
+
   # Event handlers {{{
   def on_descendant_focus(self, event: events.DescendantFocus) -> None:
-    """Open autocomplete when input gains focus."""
+    """Open autocomplete when input gains focus, show cursor when content gains focus."""
     if event.widget.id == f"{self.id}-input":
       input_widget = self.query_one(f"#{self.id}-input", Input)
       self._refresh_options(input_widget.value)
+    elif event.widget.id == f"{self.id}-content":
+      self._apply_visuals()
 
   def on_descendant_blur(self, event: events.DescendantBlur) -> None:
     """Close autocomplete when input loses focus."""
@@ -396,40 +501,96 @@ class SelectionPanel(Widget):
         self._advance_or_complete(result)
 
   def on_key(self, event: events.Key) -> None:
-    """Intercept arrow keys and escape for autocomplete navigation."""
+    """Handle keys for both input (autocomplete nav) and content area (cursor/selection)."""
     input_widget = self.query_one(f"#{self.id}-input", Input)
-    if not input_widget.has_focus:
+
+    # --- Input has focus: autocomplete navigation ---
+    if input_widget.has_focus:
+      autocomplete = self.query_one(f"#{self.id}-autocomplete", Autocomplete)
+      if not autocomplete.is_open:
+        return
+
+      if event.key == "down":
+        event.stop()
+        event.prevent_default()
+        autocomplete.move_highlight(1)
+      elif event.key == "up":
+        event.stop()
+        event.prevent_default()
+        autocomplete.move_highlight(-1)
+      elif event.key == "escape":
+        event.stop()
+        event.prevent_default()
+        autocomplete.close()
       return
 
-    autocomplete = self.query_one(f"#{self.id}-autocomplete", Autocomplete)
-    if not autocomplete.is_open:
+    # --- Content area has focus: cursor/selection ---
+    if not self._content_has_focus():
       return
+    if self._entry_count == 0:
+      return
+
+    entries = self._get_selectable_entries()
 
     if event.key == "down":
       event.stop()
       event.prevent_default()
-      autocomplete.move_highlight(1)
+      if self._cursor_index < self._entry_count - 1:
+        self._cursor_index += 1
+        self._apply_visuals()
+        entries[self._cursor_index].scroll_visible()
+
     elif event.key == "up":
       event.stop()
       event.prevent_default()
-      autocomplete.move_highlight(-1)
+      if self._cursor_index > 0:
+        self._cursor_index -= 1
+        self._apply_visuals()
+        entries[self._cursor_index].scroll_visible()
+
+    elif event.key == "space" or event.key == "enter":
+      event.stop()
+      event.prevent_default()
+      entry = entries[self._cursor_index]
+      if entry.data_index is not None:
+        self._toggle_selection(entry.data_index)
+
+    elif event.key in ("delete", "backspace"):
+      event.stop()
+      event.prevent_default()
+      if self._selected_indices:
+        indices = sorted(self._selected_indices)
+      else:
+        entry = entries[self._cursor_index]
+        if entry.data_index is None:
+          return
+        indices = [entry.data_index]
+      self.post_message(self.EntryRemoved(panel=self, indices=indices))
+
+    elif event.key == "a" and self._selected_indices and len(self._selected_indices) >= 2:
+      event.stop()
+      event.prevent_default()
+      self.post_message(self.EntriesGrouped(
+        panel=self, indices=sorted(self._selected_indices), logic="AND"
+      ))
+
+    elif event.key == "o" and self._selected_indices and len(self._selected_indices) >= 2:
+      event.stop()
+      event.prevent_default()
+      self.post_message(self.EntriesGrouped(
+        panel=self, indices=sorted(self._selected_indices), logic="OR"
+      ))
+
+    elif event.key == "s":
+      event.stop()
+      event.prevent_default()
+      entry = entries[self._cursor_index]
+      if entry.data_index is not None:
+        self.post_message(self.EntrySwapped(panel=self, index=entry.data_index))
+
     elif event.key == "escape":
       event.stop()
       event.prevent_default()
-      autocomplete.close()
-  # }}}
-
-  # Content area {{{
-  def set_content(self, lines: list[str]) -> None:
-    """Replace the content area with the given lines.
-    Called by the Screen after updating QueryBuilder state.
-    """
-    container = self.query_one(f"#{self.id}-content", ScrollableContainer)
-    container.remove_children()
-    if not lines:
-      container.mount(Static(f"Awaiting {self._title.rstrip(':')} Input"))
-    else:
-      for line in lines:
-        container.mount(Static(line))
+      self._clear_selection()
   # }}}
 # }}}

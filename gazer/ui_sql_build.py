@@ -8,6 +8,7 @@ from textual.screen import Screen
 from textual.widgets import Static, Header, Footer
 
 from .ui_error import ErrorOverlay
+from .core_sql_build import Filter, FilterGroup
 from .ui_selection_panel import (
   SelectionPanel,
   make_select_pipeline, make_filter_pipeline, make_order_pipeline,
@@ -34,6 +35,7 @@ class SQLBuilderScreen(Screen): # {{{
 
   def __init__(self) -> None:
     super().__init__()
+    self._filter_map: dict[int, tuple[FilterGroup, Filter | FilterGroup]] = {}
 
   # Compose {{{
   def compose(self) -> ComposeResult:
@@ -81,6 +83,75 @@ class SQLBuilderScreen(Screen): # {{{
       self._handle_filter_entry(event.result)
     elif panel_id == "order-section":
       self._handle_order_entry(event.result)
+
+  def on_selection_panel_entry_removed(self, event: SelectionPanel.EntryRemoved) -> None:
+    """Remove entries from QueryBuilder by data index."""
+    panel_id = event.panel.id
+    if panel_id == "select-panel":
+      state = self._query_builder.get_state()
+      for idx in sorted(event.indices, reverse=True):
+        if 0 <= idx < len(state['columns']):
+          self._query_builder.remove_column(state['columns'][idx])
+    elif panel_id == "order-section":
+      for idx in sorted(event.indices, reverse=True):
+        self._query_builder.remove_order_by(idx)
+    elif panel_id == "filter-section":
+      for idx in sorted(event.indices, reverse=True):
+        entry = self._filter_map.get(idx)
+        if entry is None:
+          continue
+        parent, child = entry
+        if child in parent.children:
+          parent.children.remove(child)
+    self._refresh_all_panels()
+
+  def on_selection_panel_entries_grouped(self, event: SelectionPanel.EntriesGrouped) -> None:
+    """Group selected filter entries into an AND/OR group."""
+    if event.panel.id != "filter-section":
+      return
+
+    # Collect (parent, child) pairs
+    items: list[tuple[FilterGroup, Filter | FilterGroup]] = []
+    for idx in event.indices:
+      entry = self._filter_map.get(idx)
+      if entry is not None:
+        items.append(entry)
+    if len(items) < 2:
+      return
+
+    # Verify all share the same parent
+    parents = {id(parent) for parent, _ in items}
+    if len(parents) > 1:
+      self.show_error("Group", "Can only group entries that share the same parent.")
+      return
+
+    parent = items[0][0]
+    children_to_group = [child for _, child in items]
+
+    # Find insertion position (earliest)
+    insert_pos = min(parent.children.index(c) for c in children_to_group)
+
+    # Remove from parent
+    for child in children_to_group:
+      parent.children.remove(child)
+
+    # Create group and insert
+    new_group = FilterGroup(logic=event.logic, children=children_to_group)
+    parent.children.insert(insert_pos, new_group)
+
+    self._refresh_all_panels()
+
+  def on_selection_panel_entry_swapped(self, event: SelectionPanel.EntrySwapped) -> None:
+    """Toggle a FilterGroup's logic between AND and OR."""
+    if event.panel.id != "filter-section":
+      return
+    entry = self._filter_map.get(event.index)
+    if entry is None:
+      return
+    _, child = entry
+    if isinstance(child, FilterGroup):
+      child.logic = "OR" if child.logic == "AND" else "AND"
+      self._refresh_all_panels()
 
   def _handle_select_entry(self, result: dict) -> None:
     """Validate and add a column to the query builder."""
@@ -156,41 +227,66 @@ class SQLBuilderScreen(Screen): # {{{
     state = self._query_builder.get_state()
 
     # SELECT
-    select_lines: list[str] = []
+    select_entries: list[tuple[str, int | None]] = []
     if state.get('distinct'):
-      select_lines.append("[DISTINCT]")
-    for col in state['columns']:
-      select_lines.append(f"  - {col}")
-    self.query_one("#select-panel", SelectionPanel).set_content(select_lines)
+      select_entries.append(("[DISTINCT]", None))
+    for i, col in enumerate(state['columns']):
+      select_entries.append((f"  - {col}", i))
+    self.query_one("#select-panel", SelectionPanel).set_entries(select_entries)
 
     # ORDER BY
-    order_lines = [f"  - {e['column']} {e['direction']}" for e in state['order_by']]
-    self.query_one("#order-section", SelectionPanel).set_content(order_lines)
+    order_entries: list[tuple[str, int | None]] = [
+      (f"  - {e['column']} {e['direction']}", i)
+      for i, e in enumerate(state['order_by'])
+    ]
+    self.query_one("#order-section", SelectionPanel).set_entries(order_entries)
 
     # FILTER
+    self._filter_map.clear()
     root = state['root_group']
     if root.is_empty():
-      filter_lines: list[str] = []
+      filter_entries: list[tuple[str, int | None]] = []
     else:
-      filter_lines = self._format_filter_tree(root)
-    self.query_one("#filter-section", SelectionPanel).set_content(filter_lines)
+      # Root group header (selectable so it can be swapped)
+      root_id = len(self._filter_map)
+      self._filter_map[root_id] = (root, root)
+      filter_entries: list[tuple[str, int | None]] = [(root.logic, root_id)]
+      filter_entries.extend(self._format_filter_entries(root))
+    self.query_one("#filter-section", SelectionPanel).set_entries(filter_entries)
 
-  def _format_filter_tree(self, group, indent: int = 0) -> list[str]:
-    """Recursively format a FilterGroup into display lines."""
-    from .core_sql_build import Filter, FilterGroup
-    lines: list[str] = []
-    prefix = "  " * indent
+  def _format_filter_entries(self, group: FilterGroup,
+                             ancestors_last: list[bool] | None = None,
+                             ) -> list[tuple[str, int | None]]:
+    """Recursively format a FilterGroup into (text, entry_id) entries.
+    Every entry gets a unique ID. _filter_map maps ID → (parent, child).
+
+    ancestors_last tracks whether each ancestor is the last child in its
+    parent, so we draw │ continuation lines or spaces accordingly.
+    """
+    if ancestors_last is None:
+      ancestors_last = []
+
+    entries: list[tuple[str, int | None]] = []
     children = group.children
 
     for i, child in enumerate(children):
-      connector = "└─" if i == len(children) - 1 else "├─"
-      if isinstance(child, Filter):
-        lines.append(f"{prefix}{connector} {child}")
-      elif isinstance(child, FilterGroup):
-        lines.append(f"{prefix}{connector} {child.logic}")
-        lines.extend(self._format_filter_tree(child, indent + 1))
+      is_last = i == len(children) - 1
 
-    return lines
+      # Build prefix: for each ancestor depth, │ if ancestor has siblings after it, else space
+      prefix = "".join("   " if last else "│  " for last in ancestors_last)
+      connector = "└─" if is_last else "├─"
+
+      entry_id = len(self._filter_map)
+      self._filter_map[entry_id] = (group, child)
+      if isinstance(child, Filter):
+        entries.append((f"{prefix}{connector} {child}", entry_id))
+      elif isinstance(child, FilterGroup):
+        entries.append((f"{prefix}{connector} {child.logic}", entry_id))
+        entries.extend(self._format_filter_entries(
+          child, ancestors_last + [is_last],
+        ))
+
+    return entries
 
   @property
   def _app(self) -> GazerApp:

@@ -163,6 +163,31 @@ SelectionPanel {
 }
 
 /* ===========================
+   Content Entries
+   =========================== */
+
+ContentEntry {
+  height: 1;
+  padding: 0 1;
+}
+
+ContentEntry.-cursor {
+  background: $accent 30%;
+}
+
+ContentEntry.-selected {
+  background: $primary 30%;
+}
+
+ContentEntry.-cursor.-selected {
+  background: $accent 50%;
+}
+
+.content-area:focus {
+  border: solid $accent;
+}
+
+/* ===========================
    Autocomplete Overlay
    =========================== */
 

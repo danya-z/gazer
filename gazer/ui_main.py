@@ -57,7 +57,7 @@ class GazerApp(App):
     super().__init__()
     self.register_theme(Theme(
       name="vscode-dark",
-      primary="#2472c8",
+      primary="#d18616",
       secondary="#11a8cd",
       background="#1e1e1e",
       foreground="#cccccc",
@@ -69,10 +69,10 @@ class GazerApp(App):
       success="#0dbc79",
       dark=True,
       variables={
-        "border": "#3b8eea",
+        "border": "#d18616",
         "border-blurred": "#666666",
         "footer-background": "#252526",
-        "footer-key-foreground": "#3b8eea",
+        "footer-key-foreground": "#d18616",
         "input-cursor-background": "#cccccc",
         "input-cursor-foreground": "#1e1e1e",
         "scrollbar": "#666666",
