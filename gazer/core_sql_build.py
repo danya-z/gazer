@@ -137,7 +137,6 @@ class QueryBuilder:
     self._joins: list[dict] = []
     self._root_group = FilterGroup("AND")
     self._fk_graph: dict[str, list[dict]] = {}
-    self._distinct: bool = False
     self._order_by: list[dict] = []
     return self
 
@@ -244,10 +243,6 @@ class QueryBuilder:
 
   def clear_filters(self) -> QueryBuilder:
     self._root_group = FilterGroup("AND")
-    return self
-
-  def toggle_distinct(self) -> QueryBuilder:
-    self._distinct = not self._distinct
     return self
 
   def add_order_by(self, column: str, direction: str = "ASC") -> QueryBuilder:
@@ -370,9 +365,8 @@ class QueryBuilder:
 
     params: list = []
 
-    select_kw = "SELECT DISTINCT" if self._distinct else "SELECT"
     columns_str = ",\n  ".join(self._columns)
-    sql = f"{select_kw}\n  {columns_str}\nFROM {self._table}"
+    sql = f"SELECT\n  {columns_str},\n  COUNT(*) AS duplicate_count\nFROM {self._table}"
 
     all_joins = self._resolve_joins()
     for join in all_joins:
@@ -383,6 +377,8 @@ class QueryBuilder:
       if where_sql:
         sql += f"\nWHERE {where_sql}"
         params.extend(where_params)
+
+    sql += f"\nGROUP BY {', '.join(self._columns)}"
 
     if self._order_by:
       order_parts = [f"{o['column']} {o['direction']}" for o in self._order_by]
@@ -399,7 +395,6 @@ class QueryBuilder:
       'columns': self._columns.copy(),
       'joins': self._joins.copy(),
       'root_group': self._root_group,
-      'distinct': self._distinct,
       'order_by': self._order_by.copy(),
     }
 

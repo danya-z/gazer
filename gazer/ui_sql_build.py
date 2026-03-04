@@ -29,7 +29,6 @@ class SQLBuilderScreen(Screen): # {{{
     ("ctrl+x", "export_query", "Export CSV"),
     ("ctrl+l", "load_preset", "Load Preset"),
     ("ctrl+s", "save_preset", "Save Preset"),
-    ("ctrl+d", "toggle_distinct", "Toggle DISTINCT"),
     ("f1", "show_schema", "Schema"),
   ]
 
@@ -228,8 +227,6 @@ class SQLBuilderScreen(Screen): # {{{
 
     # SELECT
     select_entries: list[tuple[str, int | None]] = []
-    if state.get('distinct'):
-      select_entries.append(("[DISTINCT]", None))
     for i, col in enumerate(state['columns']):
       select_entries.append((f"  - {col}", i))
     self.query_one("#select-panel", SelectionPanel).set_entries(select_entries)
@@ -298,10 +295,6 @@ class SQLBuilderScreen(Screen): # {{{
   # }}}
 
   # Actions {{{
-  def action_toggle_distinct(self) -> None:
-    self._query_builder.toggle_distinct()
-    self._refresh_all_panels()
-
   def action_show_schema(self) -> None:
     self.app.push_screen(SchemaScreen(self._app.schema_data_raw))
   # }}}
