@@ -6,7 +6,7 @@ class Config: # {{{
   """Manages configuration for Gazer, stored in ~/.gazer/config.json."""
 
   DEFAULTS: dict[str, str] = {
-    "host": "ldvdbapgdb02a.itap.purdue.edu",
+    "host": "lpvdbapgdb02a.itap.purdue.edu",
     "port": "5433",
     "database": "bdidata",
     "username": "",
