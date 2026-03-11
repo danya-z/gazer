@@ -18,8 +18,9 @@ Developed for the BDI Laboratory at Purdue University.
 ## Installation
 
 1. Installing **Python 3.12+**.
-Open your terminal and make sure you have python installed.
-For Windows, run
+
+    Open your terminal and make sure you have python installed.
+    For Windows, run
     ```bash
     python --version
     ```
@@ -34,7 +35,8 @@ For Windows, run
     "Add to PATH" checkbox during installation.
 
 2. Installing **git**.
-Make sure you have git installed by running
+
+    Make sure you have git installed by running
     ```bash
     git --version
     ```
@@ -43,7 +45,8 @@ Make sure you have git installed by running
     https://git-scm.com/.
 
 3. Installing **pipx**
-Ensure `pipx` is installed by running 
+
+    Ensure `pipx` is installed by running 
     ```bash
     pipx --version
     ```
@@ -66,7 +69,8 @@ Ensure `pipx` is installed by running
     After you run `ensurepath`, restart (close and open) your terminal.
 
 4. **Zone-network-clients VPN**. 
-Gazer _always_ requires you to be connected to the `Zone-network-clients` VPN. If you have never done so before, open [Cisco Secure Client](https://it.purdue.edu/services/vpn.php). Instead of using the dropdown select, enter 
+
+    Gazer _always_ requires you to be connected to the `Zone-network-clients` VPN. If you have never done so before, open [Cisco Secure Client](https://it.purdue.edu/services/vpn.php). Instead of using the dropdown select, enter 
     ```
     zonevpn.itap.purdue.edu/clients
     ```
@@ -75,7 +79,8 @@ Gazer _always_ requires you to be connected to the `Zone-network-clients` VPN. I
     Always connect to `Zone-network-clients` when using Gazer.
 
 5. **Database Credentials**. 
-If you are a new lab member, your credentials might not be recognized by the BDI database. In that case, gazer will not be able to connect you to the db, and upon login will return something along the lines of 
+
+    If you are a new lab member, your credentials might not be recognized by the BDI database. In that case, gazer will not be able to connect you to the db, and upon login will return something along the lines of 
     ```
     connection to server at "lpvdbapgdb02a.itap.purdue.edu" (172.26.133.49), port 5433 failed: FATAL:  no pg_hba.conf entry for host "172.30.1.245", user "username", database "bdidata", SSL encryption
     connection to server at "lpvdbapgdb02a.itap.purdue.edu" (172.26.133.49), port 5433 failed: FATAL:  no pg_hba.conf entry for host "172.30.1.245", user "username", database "bdidata", no encryption
@@ -94,7 +99,8 @@ If you are a new lab member, your credentials might not be recognized by the BDI
     ```
 
 6. Installing **Gazer**
-To install gazer, run
+
+    To install gazer, run
     ```bash
     git clone https://github.itap.purdue.edu/Nolte-Group/gazer.git ./gazer_install
     ```
