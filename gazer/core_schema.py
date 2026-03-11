@@ -8,6 +8,7 @@ class SchemaInspector: # {{{
   Uses in-memory caching to avoid repeated DB queries.
   """
 
+  # TODO remove hard coded schema value
   def __init__(self, connector: DBConnector, schema: str = "bdidata") -> None:
     self.connector = connector
     self.schema = schema
