@@ -23,92 +23,92 @@ For Windows, run
     ```bash
     python --version
     ```
-For MacOS or Linux run
+    For MacOS or Linux run
     ```bash
     python3 --version
     ```
-If python is not installed, you will need to install it.
-More information about Python can be found on the official website
-https://python.org. 
-If you are installing python for Windows, make sure you check the 
-"Add to PATH" checkbox during installation.
+    If python is not installed, you will need to install it.
+    More information about Python can be found on the official website
+    https://python.org. 
+    If you are installing python for Windows, make sure you check the 
+    "Add to PATH" checkbox during installation.
 
 2. Installing **git**.
 Make sure you have git installed by running
     ```bash
     git --version
     ```
-If git is not installed, you will need to install it.
-More information about git can be found on the official website
-https://git-scm.com/.
+    If git is not installed, you will need to install it.
+    More information about git can be found on the official website
+    https://git-scm.com/.
 
 3. Installing **pipx**
 Ensure `pipx` is installed by running 
     ```bash
     pipx --version
     ```
-If it is not installed, you can do so via anaconda/pip/pip3.
-If you use anaconda, run
+    If it is not installed, you can do so via anaconda/pip/pip3.
+    If you use anaconda, run
     ```bash
     conda install -c conda-forge pipx
     pipx ensurepath
     ```
-Otherwise, if you are on Windows, run
+    Otherwise, if you are on Windows, run
     ```bash
     python -m pip install pipx
     python -m pipx ensurepath
     ```
-Otherwise, if you are on MacOS or Linux, run
+    Otherwise, if you are on MacOS or Linux, run
     ```bash
     python3 -m pip install pipx
     python3 -m pipx ensurepath
     ```
-After you run `ensurepath`, restart (close and open) your terminal.
+    After you run `ensurepath`, restart (close and open) your terminal.
 
 4. **Zone-network-clients VPN**. 
 Gazer _always_ requires you to be connected to the `Zone-network-clients` VPN. If you have never done so before, open [Cisco Secure Client](https://it.purdue.edu/services/vpn.php). Instead of using the dropdown select, enter 
     ```
     zonevpn.itap.purdue.edu/clients
     ```
-Select Connect, and authenticate with your Purdue career account credentials (you might have to use Duo for this). On future connections the dropdown for the Client should populate automatically. 
+    Select Connect, and authenticate with your Purdue career account credentials (you might have to use Duo for this). On future connections the dropdown for the Client should populate automatically. 
 
     Always connect to `Zone-network-clients` when using Gazer.
 
 5. **Database Credentials**. 
 If you are a new lab member, your credentials might not be recognized by the BDI database. In that case, gazer will not be able to connect you to the db, and upon login will return something along the lines of 
-```
-connection to server at "lpvdbapgdb02a.itap.purdue.edu" (172.26.133.49), port 5433 failed: FATAL:  no pg_hba.conf entry for host "172.30.1.245", user "username", database "bdidata", SSL encryption
-connection to server at "lpvdbapgdb02a.itap.purdue.edu" (172.26.133.49), port 5433 failed: FATAL:  no pg_hba.conf entry for host "172.30.1.245", user "username", database "bdidata", no encryption
-```
-In that case request itap to add you to the `pg_hba.conf` file for the following database:
-```
-server: lpvdbapgdb02a.itap.purdue.edu
-port: 5433
-name: bdidata
-```
-If you need the access to the development database, request access to
-```
-server: ldvdbapgdb02a.itap.purdue.edu
-port: 5433
-name: bdidata
-```
+    ```
+    connection to server at "lpvdbapgdb02a.itap.purdue.edu" (172.26.133.49), port 5433 failed: FATAL:  no pg_hba.conf entry for host "172.30.1.245", user "username", database "bdidata", SSL encryption
+    connection to server at "lpvdbapgdb02a.itap.purdue.edu" (172.26.133.49), port 5433 failed: FATAL:  no pg_hba.conf entry for host "172.30.1.245", user "username", database "bdidata", no encryption
+    ```
+    In that case request itap to add you to the `pg_hba.conf` file for the following database:
+    ```
+    server: lpvdbapgdb02a.itap.purdue.edu
+    port: 5433
+    name: bdidata
+    ```
+    If you need the access to the development database, request access to
+    ```
+    server: ldvdbapgdb02a.itap.purdue.edu
+    port: 5433
+    name: bdidata
+    ```
 
 6. Installing **Gazer**
 To install gazer, run
     ```bash
     git clone https://github.itap.purdue.edu/Nolte-Group/gazer.git ./gazer_install
     ```
-Git will clone Gazer from the group's private github;
-this will require you to authenticate with your Purdue credentials.
-After cloning succeeds, in the same directory you ran git clone, run pipx
+    Git will clone Gazer from the group's private github;
+    this will require you to authenticate with your Purdue credentials.
+    After cloning succeeds, in the same directory you ran git clone, run pipx
     ```
     pipx install ./gazer_install --force
     ```
-Once Gazer is installed, test it by running
+    Once Gazer is installed, test it by running
     ```bash
     gazer
     ```
-You can then delete the cloned `gazer_install` folder.
+    You can then delete the cloned `gazer_install` folder.
 
 ### Using gazer
 If everything is set up properly, running `gazer` in your terminal will always launch Gazer. To connect to the database, don't forget to connect to the `Zone-network-clients` VPN.
