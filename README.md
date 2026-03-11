@@ -115,10 +115,10 @@ If everything is set up properly, running `gazer` in your terminal will always l
 
 ### Update Gazer
 Gazer does not update automatically. To update, delete the `gazer_install` folder if it still exists from a previous install, then run the install commands again:
-    ```bash
-    git clone https://github.itap.purdue.edu/Nolte-Group/gazer.git ./gazer_install
-    pipx install ./gazer_install --force
-    ```
+```bash
+git clone https://github.itap.purdue.edu/Nolte-Group/gazer.git ./gazer_install 
+pipx install ./gazer_install --force
+```
 You can then delete the cloned `gazer_install` folder.
 
 ## Configuration
