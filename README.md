@@ -58,11 +58,13 @@ Developed for the BDI Laboratory at Purdue University.
     ```
     Otherwise, if you are on Windows, run
     ```bash
+    python -m ensurepip --upgrade # This installs pip if it isn't installed already
     python -m pip install pipx
     python -m pipx ensurepath
     ```
-    Otherwise, if you are on MacOS or Linux, run
+    Otherwise, if you are on MacOS or Linux (or WSL), run
     ```bash
+    python3 -m ensurepip --upgrade # This installs pip if it isn't installed already
     python3 -m pip install pipx
     python3 -m pipx ensurepath
     ```
