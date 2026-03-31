@@ -110,7 +110,7 @@ def main() -> None:
                       help="Update gazer from git (default: Purdue repo). "
                            "Optionally specify a custom repo URL.")
   parser.add_argument("--developer", action="store_true",
-                      help="Run in developer mode that gives access to the full schema, features table-based selection, and shows hidden tables/columns (prefixed with _)")
+                      help="Run in developer mode that gives access to the full schema, table-based selection, and hidden tables/columns")
 
   args = parser.parse_args()
 
