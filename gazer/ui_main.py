@@ -53,9 +53,9 @@ class GazerApp(App):
     Binding("ctrl+c", "app.quit", "Quit", show=False, priority=True),
   ]
 
-  def __init__(self, developer: bool = False) -> None:
+  def __init__(self, devmode: bool = False) -> None:
     super().__init__()
-    self.developer = developer
+    self.devmode = devmode
     self.register_theme(Theme(
       name="vscode-dark",
       primary="#d18616",
@@ -337,8 +337,8 @@ class ConnectionScreen(Screen):
 # }}}
 
 
-def main(developer: bool = False) -> None:
-  app = GazerApp(developer=developer)
+def main(devmode: bool = False) -> None:
+  app = GazerApp(devmode=devmode)
   atexit.register(app.cleanup)
   app.run()
 

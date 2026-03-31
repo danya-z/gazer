@@ -48,7 +48,7 @@ def _do_uninstall() -> None:
     if installer == "conda":
       result = subprocess.run(["conda", "remove", "-y", "gazer"])
     else:
-      result = subprocess.run(["pipx", "uninstall", "gazer"])
+      result = subprocess.run(["pipx", "uninstall", "gazer"], cwd=tempfile.gettempdir())
   except FileNotFoundError:
     print(f"Error: {installer} not found.", file=sys.stderr)
     sys.exit(1)
@@ -101,7 +101,7 @@ def main() -> None:
     prog="gazer",
     description="Gazer — TUI database query builder for BDI Laboratory at Purdue.",
   )
-  parser.add_argument("--version", "-v", action="store_true",
+  parser.add_argument("-v", "--version", action="store_true",
                       help="Print version and exit")
   parser.add_argument("--uninstall", action="store_true",
                       help="Uninstall gazer and remove ~/.gazer config")
@@ -109,7 +109,7 @@ def main() -> None:
                       metavar="REPO_URL",
                       help="Update gazer from git (default: Purdue repo). "
                            "Optionally specify a custom repo URL.")
-  parser.add_argument("--developer", action="store_true",
+  parser.add_argument("--devmode", action="store_true",
                       help="Run in developer mode that gives access to the full schema, table-based selection, and hidden tables/columns")
 
   args = parser.parse_args()
@@ -125,7 +125,7 @@ def main() -> None:
     return
 
   from .ui_main import main as run_app
-  run_app(developer=args.developer)
+  run_app(devmode=args.devmode)
 
 
 if __name__ == "__main__":
