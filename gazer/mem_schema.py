@@ -25,8 +25,9 @@ def save_cache(host: str, database: str,
     json.dump(data, f, indent=2)
 
 
-def load_cache(host: str, database: str) -> dict | None:
-  """Load cached schema if it matches the given host+database.
+def load_cache(host: str, database: str,
+               max_age_minutes: int = 10) -> dict | None:
+  """Load cached schema if it matches the given host+database and is fresh.
   Returns:
     dict with 'foreign_keys' and optionally 'schema_data', or None.
   """
@@ -35,12 +36,26 @@ def load_cache(host: str, database: str) -> dict | None:
   try:
     with open(CACHE_FILE, 'r') as f:
       data = json.load(f)
-    if data.get("host") == host and data.get("database") == database:
-      return {
-        "foreign_keys": data.get("foreign_keys", []),
-        "schema_data": data.get("schema_data"),
-      }
+    if data.get("host") != host or data.get("database") != database:
+      return None
+    ts = data.get("timestamp")
+    if ts:
+      age = datetime.now() - datetime.fromisoformat(ts)
+      if age.total_seconds() > max_age_minutes * 60:
+        return None
+    return {
+      "foreign_keys": data.get("foreign_keys", []),
+      "schema_data": data.get("schema_data"),
+    }
   except (json.JSONDecodeError, ValueError, KeyError):
     pass
   return None
+
+
+def clear_cache() -> bool:
+  """Delete the schema cache file. Returns True if a file was removed."""
+  if CACHE_FILE.exists():
+    CACHE_FILE.unlink()
+    return True
+  return False
 # }}}

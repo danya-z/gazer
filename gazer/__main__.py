@@ -103,14 +103,16 @@ def main() -> None:
   )
   parser.add_argument("-v", "--version", action="store_true",
                       help="Print version and exit")
-  parser.add_argument("--uninstall", action="store_true",
-                      help="Uninstall gazer and remove ~/.gazer config")
+  parser.add_argument("--clear-cache", action="store_true",
+                      help="Clear the cached schema and exit")
+  parser.add_argument("--devmode", action="store_true",
+                      help="Run in developer mode that gives access to the full schema, table-based selection, and hidden tables/columns")
   parser.add_argument("--update", nargs="?", const=DEFAULT_REPO_URL, default=None,
                       metavar="REPO_URL",
                       help="Update gazer from git (default: Purdue repo). "
                            "Optionally specify a custom repo URL.")
-  parser.add_argument("--devmode", action="store_true",
-                      help="Run in developer mode that gives access to the full schema, table-based selection, and hidden tables/columns")
+  parser.add_argument("--uninstall", action="store_true",
+                      help="Uninstall gazer and remove ~/.gazer config")
 
   args = parser.parse_args()
 
@@ -122,6 +124,13 @@ def main() -> None:
     return
   if args.update is not None:
     _do_update(args.update)
+    return
+  if args.clear_cache:
+    from .mem_schema import clear_cache
+    if clear_cache():
+      print("Schema cache cleared.")
+    else:
+      print("No cache file found.")
     return
 
   from .ui_main import main as run_app
