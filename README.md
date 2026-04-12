@@ -43,16 +43,12 @@ Developed for the BDI Laboratory at Purdue University.
     python --version
     ```
     Make sure at least one of the commands works and returns a version 3.12. 
-
-> [!NOTE]
-> Hereonby this README will refer to the `python` command; replace it with `python3` if that alias works for you instead.
+    README will refer to the `python` command; replace it with `python3` if that alias works for you instead.
 
     If both `python` and `python3` returned an error, you will have to install Python.
     More information about Python can be found on the official website
-    https://python.org. 
-
-> [!WARNING]
-> If you proceed with installing python for Windows, make sure you check the "Add to PATH" checkbox during installation.
+    https://python.org. If you proceed with installing python for Windows, 
+    make sure you check the "**Add to PATH**" checkbox during installation.
 
 2. **Installing pip**.
     
