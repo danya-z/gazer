@@ -45,6 +45,14 @@ ConnectionScreen Horizontal {
   content-align: left middle;
 }
 
+#vpn_warning {
+  text-align: center;
+  color: $warning;
+  text-style: bold;
+  padding: 1;
+  margin: 0 2;
+}
+
 #error_display {
   text-align: center;
   padding: 1;

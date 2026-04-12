@@ -1,4 +1,5 @@
 import atexit
+import socket
 from typing import cast
 
 from textual import work
@@ -144,6 +145,7 @@ class ConnectionScreen(Screen):
       )
     )
 
+    yield Static("", id="vpn_warning")
     yield Static("", id="error_display")
     yield Footer()
 
@@ -151,6 +153,7 @@ class ConnectionScreen(Screen):
     app = cast(GazerApp, self.app)
     if app.config.get_username():
       self.query_one("#password", Input).focus()
+    self._check_vpn(app.config.get_host(), int(app.config.get_port()))
 
   def on_input_submitted(self, event: Input.Submitted) -> None:
     if event.input.id == "username":
@@ -177,6 +180,22 @@ class ConnectionScreen(Screen):
 
     self.start_connecting_animation()
     self.connect_worker(host, port, database, username, password)
+  # }}}
+
+  # VPN Check {{{
+  @work(thread=True)
+  def _check_vpn(self, host: str, port: int) -> None:
+    """Background check: can we reach the DB host?"""
+    try:
+      sock = socket.create_connection((host, port), timeout=3.0)
+      sock.close()
+    except (socket.timeout, socket.gaierror, OSError):
+      self.app.call_from_thread(self._show_vpn_warning)
+
+  def _show_vpn_warning(self) -> None:
+    self.query_one("#vpn_warning", Static).update(
+      "⚠ Cannot reach database host — are you on the VPN?"
+    )
   # }}}
 
   # Connection Animation {{{
