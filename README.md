@@ -19,6 +19,7 @@ Developed for the BDI Laboratory at Purdue University.
 ## Installation
     
 0. The WHAT and the WHY
+
     _Read this if you want to understand that what and the why of the installation procedure._
 
     Gazer is a python package and it depends on other projects and libraries.
@@ -31,7 +32,7 @@ Developed for the BDI Laboratory at Purdue University.
     making sure that they don't conflict with each other or your system.
     Pipx handles all of that automatically, so you don't have to worry about it.
 
-1. Installing **Python 3.12+**.
+1. **Installing Python 3.12+**.
 
     On your computer, python can run under the alias `python` or `python3`;
     check which alias is relevant to you, by running the following commands in your terminal:
@@ -52,7 +53,7 @@ Developed for the BDI Laboratory at Purdue University.
     [!WARNING]
     If you proceed with installing python for Windows, make sure you check the "Add to PATH" checkbox during installation.
 
-2. Installing **pip**.
+2. **Installing pip**.
     
     Ensure that pip is installed by running 
     ```bash
@@ -63,7 +64,7 @@ Developed for the BDI Laboratory at Purdue University.
     If the command returns an error, you might have `ensurepip` patched out of your installation (some distributors just do that for some reason).
     Check the [pip documentation](https://pypi.org/project/pip/) for the installation procedures.
 
-3. Installing **git**.
+3. **Installing git**.
 
     Make sure you have git installed by running
     ```bash
@@ -72,7 +73,7 @@ Developed for the BDI Laboratory at Purdue University.
     If git is not installed, you will need to install it.
     More information about git can be found on the [official website](https://git-scm.com/).
 
-4. Installing **pipx**
+4. **Installing pipx**.
 
     Ensure `pipx` is installed by running 
     ```bash
@@ -115,7 +116,7 @@ Developed for the BDI Laboratory at Purdue University.
     name: bdidata
     ```
 
-7. Installing **Gazer**
+7. **Installing Gazer**.
 
     To install gazer, run
     ```bash
@@ -133,7 +134,7 @@ Developed for the BDI Laboratory at Purdue University.
     ```
     You can then delete the cloned `gazer_install` folder.
 
-## Installing with conda (not recommended)
+### Installing with conda (not recommended)
 
 If you already use conda and prefer it over pipx, you can install Gazer into a conda environment instead. To do so, clone the repository (step 7) and run:
 ```bash
@@ -143,16 +144,17 @@ pip install ./gazer_install
 ```
 Note that with conda, you will need to run `conda activate gazer` every time you open a new terminal before you can use the `gazer` command.
 
-### Using gazer
-If everything is set up properly, running `gazer` in your terminal will always launch Gazer. To connect to the database, don't forget to connect to the `Zone-network-clients` VPN.
+## Using gazer
 
-### Update Gazer
-Gazer does not update automatically. To update, delete the `gazer_install` folder if it still exists from a previous install, then run the install commands again:
+If everything is set up properly, running `gazer` in your terminal will always launch Gazer. 
+To connect to the database, don't forget to always connect to the `Zone-network-clients` VPN first.
+
+## Updating Gazer
+
+Gazer does not update automatically. Whenever you want to update it, run 
 ```bash
-git clone https://github.itap.purdue.edu/Nolte-Group/gazer.git ./gazer_install 
-pipx install ./gazer_install --force
+gazer --update
 ```
-You can then delete the cloned `gazer_install` folder.
 
 ## Configuration
 
