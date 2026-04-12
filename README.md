@@ -145,6 +145,8 @@ Note that with conda, you will need to run `conda activate gazer` every time you
 
 If everything is set up properly, running `gazer` in your terminal will always launch Gazer. 
 To connect to the database, don't forget to always connect to the `Zone-network-clients` VPN first.
+You can check more of gazer's functionality by running `gazer -h` or `gazer --help`, 
+which will display all the commands that gazer can recognize.
 
 ## Updating Gazer
 
@@ -152,6 +154,13 @@ Gazer does not update automatically. Whenever you want to update it, run
 ```bash
 gazer --update
 ```
+The command sources update information from the group's github. 
+If for whatever reason you are unable to access group's github this way (i.e., your update returns an error),
+you can specify gazer to source the update from an open-source branch:
+```bash
+gazer --update https://github.com/danya-z/gazer.git
+```
+Note that the open-source branch is somewhat less stable.
 
 ## Configuration
 
@@ -159,7 +168,5 @@ On first run, Gazer will prompt for your database username, which is saved in `~
 
 ## Known Issues
 
-- Tested on Linux/WSL. Should work on Windows and MacOS but not extensively tested there
-- Gazer will attempt to fetch the schema and the foreign keys on every login. If it cannot fetch them, it will return an error, but will still allow you to send queries, just without automatic JOINs. That means that **most queries will not work**, unless you explicitly know how to construct them; and in that case, you should use dbeaver instead.
 - Gazer expects a tree-like structure for the database. Automatic joining will crash if there are several ways to join two tables (e.g, if table A can join table D through either B or C, gazer will return an error).
 
