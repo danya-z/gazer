@@ -173,6 +173,7 @@ class QueryBuilder:
 
     if full_column not in self._columns:
       self._columns.append(full_column)
+      self._recalculate_base_table()
     return self
 
   def add_columns(self, *columns: str | tuple[str, str]) -> QueryBuilder:
@@ -186,6 +187,7 @@ class QueryBuilder:
   def remove_column(self, column_name: str) -> QueryBuilder:
     if column_name in self._columns:
       self._columns.remove(column_name)
+      self._recalculate_base_table()
     return self
 
   def add_join(self, table: str, on_clause: str, join_type: str = 'INNER') -> QueryBuilder:
@@ -263,6 +265,16 @@ class QueryBuilder:
   def clear_order_by(self) -> QueryBuilder:
     self._order_by = []
     return self
+
+  def _recalculate_base_table(self) -> None:
+    """Recalculate the FROM table from current columns.
+    Always uses 'wells' as the base so COUNT(*) reflects well-level duplicates.
+    """
+    if not self._columns:
+      self._table = None
+      return
+
+    self._table = "wells"
   # }}}
 
   # Auto-Join Resolution {{{
@@ -324,6 +336,7 @@ class QueryBuilder:
 
   def _resolve_joins(self) -> list[dict]:
     """Auto-add joins for tables referenced in columns/filters.
+    Always tries to include 'wells' for well-level duplicate counting.
     Returns list of join dicts to use in build().
     """
     manually_joined = {j['table'] for j in self._joins}

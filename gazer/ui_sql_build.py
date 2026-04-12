@@ -164,8 +164,6 @@ class SQLBuilderScreen(Screen): # {{{
     table, column = resolved
 
     qb = self._query_builder
-    if qb._table is None:
-      qb.set_table(table)
     qb.add_column(column, table)
     self._refresh_all_panels()
 
@@ -322,9 +320,6 @@ class SQLBuilderScreen(Screen): # {{{
     if not valid:
       self.show_error("Preset", "No valid columns in this preset for the current schema.")
       return
-
-    if qb._table is None:
-      qb.set_table(valid[0][0])
 
     for table, column in valid:
       qb.add_column(column, table)
