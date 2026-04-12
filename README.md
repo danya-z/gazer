@@ -18,19 +18,21 @@ Developed for the BDI Laboratory at Purdue University.
 
 ## Installation
     
-0. The WHAT and the WHY
+0. **The WHAT and the WHY**
 
-    _Read this if you want to understand that what and the why of the installation procedure._
+    Read this if you want to understand the process behind the installation procedure.
 
     Gazer is a python package and it depends on other projects and libraries.
     This makes it cumbersome to compile into a simple executable file you could directly download.
-    For that reason, Gazer should be installed via a "Python package manager".
+    For that reason, Gazer should be installed via a python "package manager".
 
-    You might have heard of pip, which is the python's default package manager. Pip is great, but it lacks functionality when it comes to managing apps like Gazer. E.g., by default pip installs dependencies globaly on your system, which can cause version conflicts among apps.
+    You might have heard of pip, which is the python's default package manager. 
+    It is is great, but it lacks functionality when it comes to managing apps like Gazer.
+    By default pip installs dependencies globaly on your system, which can cause version conflicts among apps.
 
     For that reason, Gazer uses pipx — a tool that installs apps in isolated environments, 
     making sure that they don't conflict with each other or your system.
-    Pipx handles all of that automatically, so you don't have to worry about it.
+    Pipx handles dependency hell automatically, so you don't have to think about it.
 
 1. **Installing Python 3.12+**.
 
@@ -42,16 +44,15 @@ Developed for the BDI Laboratory at Purdue University.
     ```
     Make sure at least one of the commands works and returns a version 3.12. 
 
-    [!NOTE]
-    Hereonby this README will refer to the `python` command;
-    replace it with `python3` if that alias works for you instead.
+    > [!NOTE]
+    > Hereonby this README will refer to the `python` command; replace it with `python3` if that alias works for you instead.
 
     If both `python` and `python3` returned an error, you will have to install Python.
     More information about Python can be found on the official website
     https://python.org. 
 
-    [!WARNING]
-    If you proceed with installing python for Windows, make sure you check the "Add to PATH" checkbox during installation.
+    > [!WARNING]
+    > If you proceed with installing python for Windows, make sure you check the "Add to PATH" checkbox during installation.
 
 2. **Installing pip**.
     
