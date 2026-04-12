@@ -8,69 +8,84 @@ Developed for the BDI Laboratory at Purdue University.
 
 **Under active development.** Core functionality is implemented and working:
 -  Database connection to Purdue PostgreSQL server with authentication
--  Schema fetching and caching
--  Error handling with detailed diagnostics and clipboard support
+-  Schema fetching, caching, manual cache clears
+-  Error handling with diagnostics and clipboard support
 -  Query builder interface
+-  Query parsing and automatic linking
 -  CSV export
 -  CSV/MATLAB import (planned)
 -  MATLAB export (planned)
 
 ## Installation
+    
+0. The WHAT and the WHY
+    _Read this if you want to understand that what and the why of the installation procedure._
+
+    Gazer is a python package and it depends on other projects and libraries.
+    This makes it cumbersome to compile into a simple executable file you could directly download.
+    For that reason, Gazer should be installed via a "Python package manager".
+
+    You might have heard of pip, which is the python's default package manager. Pip is great, but it lacks functionality when it comes to managing apps like Gazer. E.g., by default pip installs dependencies globaly on your system, which can cause version conflicts among apps.
+
+    For that reason, Gazer uses pipx — a tool that installs apps in isolated environments, 
+    making sure that they don't conflict with each other or your system.
+    Pipx handles all of that automatically, so you don't have to worry about it.
 
 1. Installing **Python 3.12+**.
 
-    Open your terminal and make sure you have python installed.
-    For Windows, run
-    ```bash
-    python --version
-    ```
-    For MacOS or Linux run
+    On your computer, python can run under the alias `python` or `python3`;
+    check which alias is relevant to you, by running the following commands in your terminal:
     ```bash
     python3 --version
+    python --version
     ```
-    If python is not installed, you will need to install it.
+    Make sure at least one of the commands works and returns a version 3.12. 
+
+    [!NOTE]
+    Hereonby this README will refer to the `python` command;
+    replace it with `python3` if that alias works for you instead.
+
+    If both `python` and `python3` returned an error, you will have to install Python.
     More information about Python can be found on the official website
     https://python.org. 
-    If you are installing python for Windows, make sure you check the 
-    "Add to PATH" checkbox during installation.
 
-2. Installing **git**.
+    [!WARNING]
+    If you proceed with installing python for Windows, make sure you check the "Add to PATH" checkbox during installation.
+
+2. Installing **pip**.
+    
+    Ensure that pip is installed by running 
+    ```bash
+    python -m ensurepip --upgrade
+    ```
+    After you run the command, you should see pip either installing, updating, or notifying that "requirement is already satisfied".
+
+    If the command returns an error, you might have `ensurepip` patched out of your installation (some distributors just do that for some reason).
+    Check the [pip documentation](https://pypi.org/project/pip/) for the installation procedures.
+
+3. Installing **git**.
 
     Make sure you have git installed by running
     ```bash
     git --version
     ```
     If git is not installed, you will need to install it.
-    More information about git can be found on the official website
-    https://git-scm.com/.
+    More information about git can be found on the [official website](https://git-scm.com/).
 
-3. Installing **pipx**
+4. Installing **pipx**
 
     Ensure `pipx` is installed by running 
     ```bash
     pipx --version
     ```
-    If it is not installed, you can do so via anaconda/pip/pip3.
-    If you use anaconda, run
+    If it is not installed, run
     ```bash
-    conda install -c conda-forge pipx
-    pipx ensurepath
-    ```
-    Otherwise, if you are on Windows, run
-    ```bash
-    python -m ensurepip --upgrade # This installs pip if it isn't installed already
     python -m pip install pipx
     python -m pipx ensurepath
     ```
-    Otherwise, if you are on MacOS or Linux (or WSL), run
-    ```bash
-    python3 -m ensurepip --upgrade # This installs pip if it isn't installed already
-    python3 -m pip install pipx
-    python3 -m pipx ensurepath
-    ```
     After you run `ensurepath`, restart (close and open) your terminal.
 
-4. **Zone-network-clients VPN**. 
+5. **Zone-network-clients VPN**. 
 
     Gazer _always_ requires you to be connected to the `Zone-network-clients` VPN. If you have never done so before, open [Cisco Secure Client](https://it.purdue.edu/services/vpn.php). Instead of using the dropdown select, enter 
     ```
@@ -80,7 +95,7 @@ Developed for the BDI Laboratory at Purdue University.
 
     Always connect to `Zone-network-clients` when using Gazer.
 
-5. **Database Credentials**. 
+6. **Database Credentials**. 
 
     If you are a new lab member, your credentials might not be recognized by the BDI database. In that case, gazer will not be able to connect you to the db, and upon login will return something along the lines of 
     ```
@@ -100,7 +115,7 @@ Developed for the BDI Laboratory at Purdue University.
     name: bdidata
     ```
 
-6. Installing **Gazer**
+7. Installing **Gazer**
 
     To install gazer, run
     ```bash
@@ -117,6 +132,16 @@ Developed for the BDI Laboratory at Purdue University.
     gazer
     ```
     You can then delete the cloned `gazer_install` folder.
+
+## Installing with conda (not recommended)
+
+If you already use conda and prefer it over pipx, you can install Gazer into a conda environment instead. To do so, clone the repository (step 7) and run:
+```bash
+conda create -n gazer python=3.12
+conda activate gazer
+pip install ./gazer_install
+```
+Note that with conda, you will need to run `conda activate gazer` every time you open a new terminal before you can use the `gazer` command.
 
 ### Using gazer
 If everything is set up properly, running `gazer` in your terminal will always launch Gazer. To connect to the database, don't forget to connect to the `Zone-network-clients` VPN.
@@ -138,3 +163,4 @@ On first run, Gazer will prompt for your database username, which is saved in `~
 - Tested on Linux/WSL. Should work on Windows and MacOS but not extensively tested there
 - Gazer will attempt to fetch the schema and the foreign keys on every login. If it cannot fetch them, it will return an error, but will still allow you to send queries, just without automatic JOINs. That means that **most queries will not work**, unless you explicitly know how to construct them; and in that case, you should use dbeaver instead.
 - Gazer expects a tree-like structure for the database. Automatic joining will crash if there are several ways to join two tables (e.g, if table A can join table D through either B or C, gazer will return an error).
+
