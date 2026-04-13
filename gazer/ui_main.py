@@ -153,7 +153,7 @@ class ConnectionScreen(Screen):
     app = cast(GazerApp, self.app)
     if app.config.get_username():
       self.query_one("#password", Input).focus()
-    self._check_vpn(app.config.get_host(), int(app.config.get_port()))
+    self._start_vpn_check(app.config.get_host(), int(app.config.get_port()))
 
   def on_input_submitted(self, event: Input.Submitted) -> None:
     if event.input.id == "username":
@@ -183,19 +183,33 @@ class ConnectionScreen(Screen):
   # }}}
 
   # VPN Check {{{
-  @work(thread=True)
+  def _start_vpn_check(self, host: str, port: int) -> None:
+    """Start periodic VPN reachability checks."""
+    self._vpn_host = host
+    self._vpn_port = port
+    self._vpn_timer = self.set_interval(5.0, self._run_vpn_check)
+    self._run_vpn_check()
+
+  def _run_vpn_check(self) -> None:
+    self._check_vpn(self._vpn_host, self._vpn_port)
+
+  @work(thread=True, exclusive=True, group="vpn_check")
   def _check_vpn(self, host: str, port: int) -> None:
     """Background check: can we reach the DB host?"""
     try:
       sock = socket.create_connection((host, port), timeout=3.0)
       sock.close()
+      reachable = True
     except (socket.timeout, socket.gaierror, OSError):
-      self.app.call_from_thread(self._show_vpn_warning)
+      reachable = False
+    self.app.call_from_thread(self._update_vpn_warning, reachable)
 
-  def _show_vpn_warning(self) -> None:
-    self.query_one("#vpn_warning", Static).update(
-      "⚠ Cannot reach database host — are you on the VPN?"
-    )
+  def _update_vpn_warning(self, reachable: bool) -> None:
+    warning = self.query_one("#vpn_warning", Static)
+    if reachable:
+      warning.update("")
+    else:
+      warning.update("⚠ Cannot reach database host — are you on the VPN?")
   # }}}
 
   # Connection Animation {{{
